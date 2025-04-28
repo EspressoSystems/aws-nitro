@@ -34,21 +34,21 @@ jobs:
       # Run Docker container and execute Enclaver installation
       - name: Run Enclaver installation
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace nitro-image:latest /bin/bash -c '
-            echo "Downloading and installing Enclaver..."
-            LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
-            DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq --raw-output ".assets[] | select(.name|match(\"^enclaver-linux-$(uname -m)-(.*)tar.gz$\")) | .browser_download_url")
-            
-            if [ -z "$DOWNLOAD_URL" ]; then
-              echo "Error: Could not find Enclaver download URL"
-              exit 1
-            fi
-            
-            curl --silent --location "$DOWNLOAD_URL" --output enclaver.tar.gz
-            tar --extract --verbose --file enclaver.tar.gz
-            install enclaver-linux-$(uname -m)-v*/enclaver /usr/bin
-            rm -f enclaver.tar.gz
-          '
+          echo "Downloading and installing Enclaver..."
+          ARCH=$(uname -m)
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/edgebitio/enclaver/releases/latest)
+          DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
+    
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Could not find Enclaver download URL"
+            exit 1
+          fi
+    
+          curl -L "$DOWNLOAD_URL" -o enclaver.tar.gz
+          tar xzf enclaver.tar.gz
+          sudo install enclaver-*/enclaver /usr/local/bin/
+          rm -rf enclaver.tar.gz enclaver-*
+          enclaver --version
 
       # Run Enclaver build
       - name: Run Enclaver build
