@@ -33,7 +33,7 @@ jobs:
       # Run Docker container and execute Enclaver installation
       - name: Run Enclaver installation
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace my-app:latest /bin/bash -c '
+          docker run --rm -v $(pwd):/workspace -w /workspace nitro-image:latest /bin/bash -c '
             echo "Downloading and installing Enclaver..."
             LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
             DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq --raw-output ".assets[] | select(.name|match(\"^enclaver-linux-$(uname -m)-(.*)tar.gz$\")) | .browser_download_url")
