@@ -1,36 +1,37 @@
 #!/bin/bash
 
-# Exit on error and trace commands
-set -e
-set -x
+# Exit immediately on error and show commands
+set -ex
 
 # Update system packages
-sudo yum update -y
+echo "Updating system packages..."
+sudo yum update -y || { echo "ERROR: Failed to update packages"; exit 1; }
 
 # Install Docker
 echo "Installing docker..."
-sudo yum install -y docker
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker ec2-user
+sudo yum install -y docker || { echo "ERROR: Failed to install docker"; exit 1; }
+sudo systemctl enable docker || { echo "ERROR: Failed to enable docker"; exit 1; }
+sudo systemctl start docker || { echo "ERROR: Failed to start docker"; exit 1; }
+sudo usermod -aG docker ec2-user || echo "WARNING: Failed to add user to docker group"
 
 # Install nitro-cli
-sudo dnf install aws-nitro-enclaves-cli -y
+echo "Installing aws-nitro-enclaves-cli..."
+sudo dnf install -y aws-nitro-enclaves-cli || { echo "ERROR: Failed to install nitro-cli"; exit 1; }
 
 # Install dev tools
-sudo dnf install aws-nitro-enclaves-cli-devel -y
+echo "Installing development tools..."
+sudo dnf install -y aws-nitro-enclaves-cli-devel || { echo "ERROR: Failed to install nitro-cli-devel"; exit 1; }
 
 # Add user to ne group
-sudo usermod -aG ne ec2-user
+sudo usermod -aG ne ec2-user || echo "WARNING: Failed to add user to ne group"
 
-# Add user to docker group
-sudo usermod -aG docker ec2-user
-
-# Install and configure socat
+# Install socat
 echo "Installing socat..."
-sudo yum install -y socat
-socat -V || { echo "socat installation failed"; exit 1; }
+sudo yum install -y socat || { echo "ERROR: Failed to install socat"; exit 1; }
+socat -V || { echo "ERROR: socat verification failed"; exit 1; }
 
-# Install and configure NFS
+# Install NFS
 echo "Installing NFS..."
-sudo yum install -y nfs-utils
+sudo yum install -y nfs-utils || { echo "ERROR: Failed to install nfs-utils"; exit 1; }
+
+echo "All installations completed successfully!"

@@ -1,4 +1,4 @@
-name: Build Docker and Run Enclaver
+name: Build Enclaver Docker Image
 
 on:
   push:
