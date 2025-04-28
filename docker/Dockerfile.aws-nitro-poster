@@ -1,0 +1,34 @@
+FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.3.2-fcd633f
+RUN curl -L -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
+
+USER root
+
+EXPOSE 8547
+EXPOSE 8548
+
+ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin
+ENV HOME=/home/user
+
+# fix this
+# if hash of config doesnt match crash if remove dont crash
+COPY --chown=user:user /config/ /config/
+
+COPY --chown=user:user aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
+RUN chmod +x /aws-nitro-entrypoint.sh
+
+# Install required packages
+RUN apt-get update && \
+    apt-get install -y \
+    socat \
+    nfs-common \
+    procps && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create and set permissions for /home/user/.arbitrum
+RUN mkdir -p /home/user/.arbitrum && \
+    chown -R user:user /home/user
+
+USER user
+
+ENTRYPOINT ["/aws-nitro-entrypoint.sh"]
