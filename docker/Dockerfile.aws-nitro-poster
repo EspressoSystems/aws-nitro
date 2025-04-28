@@ -13,7 +13,7 @@ ENV HOME=/home/user
 # if hash of config doesnt match crash if remove dont crash
 # COPY --chown=user:user /config/ /config/
 
-COPY --chown=user:user aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
+COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 RUN chmod +x /aws-nitro-entrypoint.sh
 
 # Install required packages
