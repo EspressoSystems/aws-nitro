@@ -28,7 +28,8 @@ jobs:
       - name: Update config hash in entrypoint
         run: |
           # Replace the empty EXPECTED_CONFIG_SHA256 with the provided hash
-          sed -i 's/^EXPECTED_CONFIG_SHA256=""/EXPECTED_CONFIG_SHA256="'"${{ github.event.inputs.config_hash }}"'"/' ./scripts/aws-nitro-entrypoint.sh
+          echo ${{ github.event.inputs.config_hash }}
+          sed -i 's/^EXPECTED_CONFIG_SHA256=""/EXPECTED_CONFIG_SHA256="'"${{ github.event.inputs.config_hash }}"'"/' ./docker/aws-nitro-entrypoint.sh
           grep "EXPECTED_CONFIG_SHA256" ./aws-nitro-entrypoint.sh
 
       # Build Docker image
