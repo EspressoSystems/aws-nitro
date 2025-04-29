@@ -8,6 +8,11 @@ on:
         description: 'SHA256 hash for the config'
         required: false
         default: "2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
+      nitro_node_image:
+        type: string
+        description: 'Nitro node image to build in dockerfile'
+        required: false
+        default: ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.3.2-fcd633f
   push:
     branches:
       - main
@@ -29,12 +34,25 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Update sha256 hash of config
       - name: Update config hash in entrypoint
         run: |
           CONFIG_HASH="${{ github.event.inputs.config_hash }}"
           echo "Using hash: $CONFIG_HASH"
           sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"$CONFIG_HASH"'"/' ./docker/aws-nitro-entrypoint.sh
           grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
+      
+      # Update dockerfile
+      - name: Update Nitro Node Image in Dockerfile
+        run: |
+          NITRO_IMAGE="${{ github.event.inputs.nitro_node_image }}"
+          if [ -n "$NITRO_IMAGE" ]; then
+            echo "Updating Dockerfile to use custom nitro-node image: $NITRO_IMAGE"
+            sed -i 's|^FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:.*$|FROM '"$NITRO_IMAGE"'|' ./docker/Dockerfile.aws-nitro-poster
+            grep "^FROM" ./docker/Dockerfile.aws-nitro-poster
+          else
+            echo "Using default nitro-node image"
+          fi
 
       # Build Docker image
       - name: Build Docker image
