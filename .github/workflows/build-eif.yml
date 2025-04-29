@@ -30,7 +30,7 @@ jobs:
           # Replace the empty EXPECTED_CONFIG_SHA256 with the provided hash
           echo ${{ github.event.inputs.config_hash }}
           sed -i 's/^EXPECTED_CONFIG_SHA256=""/EXPECTED_CONFIG_SHA256="'"${{ github.event.inputs.config_hash }}"'"/' ./docker/aws-nitro-entrypoint.sh
-          grep "EXPECTED_CONFIG_SHA256" ./aws-nitro-entrypoint.sh
+          grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
 
       # Build Docker image
       - name: Build Docker image
@@ -64,7 +64,7 @@ jobs:
           enclaver --version
       - name: Preprocess enclaver.yaml with branch name
         env:
-          BRANCH_NAME: ${{ github.ref_name }}  # GitHub Actions variable for branch name
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           # Use sed to replace a placeholder in enclaver.yaml with the branch name
           sed -i "s|{{BRANCH_NAME}}|$BRANCH_NAME|g" ./enclaver/enclaver.yaml
