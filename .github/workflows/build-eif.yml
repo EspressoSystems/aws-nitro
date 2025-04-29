@@ -11,7 +11,6 @@ on:
           description: 'SHA256 hash for the config'
           required: true
           type: string
-          default: "2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
 
 jobs:
   build:
@@ -28,9 +27,9 @@ jobs:
 
       - name: Update config hash in entrypoint
         run: |
-          # Replace the empty EXPECTED_CONFIG_SHA256 with the provided hash
-          echo "Input hash received: '${{ github.event.inputs.config_hash }}'"
-          sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"${{ github.event.inputs.config_hash }}"'"/' ./docker/aws-nitro-entrypoint.sh
+          CONFIG_HASH="${{ github.event.inputs.config_hash || '2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9' }}"
+          echo "Using hash: $CONFIG_HASH"
+          sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"$CONFIG_HASH"'"/' ./docker/aws-nitro-entrypoint.sh
           grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
 
       # Build Docker image
