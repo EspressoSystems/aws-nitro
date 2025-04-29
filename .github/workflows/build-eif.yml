@@ -49,9 +49,16 @@ jobs:
           sudo install enclaver-*/enclaver /usr/local/bin/
           rm -rf enclaver.tar.gz enclaver-*
           enclaver --version
+      - name: Preprocess enclaver.yaml with branch name
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}  # GitHub Actions variable for branch name
+        run: |
+          # Use sed to replace a placeholder in enclaver.yaml with the branch name
+          sed -i "s|{{BRANCH_NAME}}|$BRANCH_NAME|g" ./enclaver/enclaver.yaml
 
       # Run Enclaver build
       - name: Run Enclaver build
         run: |
           enclaver build --file ./enclaver/enclaver.yaml
+          docker images
           

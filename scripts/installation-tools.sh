@@ -14,6 +14,23 @@ sudo systemctl enable docker || { echo "ERROR: Failed to enable docker"; exit 1;
 sudo systemctl start docker || { echo "ERROR: Failed to start docker"; exit 1; }
 sudo usermod -aG docker ec2-user || echo "WARNING: Failed to add user to docker group"
 
+# Install enclaver
+echo "Downloading and installing Enclaver..."
+ARCH=$(uname -m)
+LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
+DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
+    
+if [ -z "$DOWNLOAD_URL" ]; then
+    echo "Could not find Enclaver download URL"
+    exit 1
+fi
+    
+curl -L "$DOWNLOAD_URL" -o enclaver.tar.gz
+tar xzf enclaver.tar.gz
+sudo install enclaver-*/enclaver /usr/bin/
+rm -rf enclaver.tar.gz enclaver-*
+enclaver --version
+
 # Install nitro-cli
 echo "Installing aws-nitro-enclaves-cli..."
 sudo dnf install -y aws-nitro-enclaves-cli || { echo "ERROR: Failed to install nitro-cli"; exit 1; }

@@ -1,6 +1,6 @@
 version: v1
 name: "batcher"
-target: "enclaver-batch-poster:latest"
+target: "enclaver-batch-poster:{{BRANCH_NAME}}"
 sources:
   app: "nitro-image:latest"
 defaults:
