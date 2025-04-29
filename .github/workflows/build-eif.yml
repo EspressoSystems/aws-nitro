@@ -5,11 +5,12 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  inputs:
-      config_hash:
-        description: 'SHA256 hash for the config'
-        required: true
-        type: string
+    workflow_dispatch:
+      inputs:
+        config_hash:
+          description: 'SHA256 hash for the config'
+          required: true
+          type: string
 
 jobs:
   build:
