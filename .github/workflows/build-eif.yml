@@ -5,12 +5,13 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-    workflow_dispatch:
-      inputs:
-        config_hash:
-          description: 'SHA256 hash for the config'
-          required: true
-          type: string
+  workflow_dispatch:
+    inputs:
+      config_hash:
+        description: 'SHA256 hash for the config'
+        required: true
+        type: string
+        default: "2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
 
 jobs:
   build:
@@ -27,7 +28,7 @@ jobs:
 
       - name: Update config hash in entrypoint
         run: |
-          CONFIG_HASH="${{ github.event.inputs.config_hash || '2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9' }}"
+          CONFIG_HASH="${{ github.event.inputs.config_hash }}"
           echo "Using hash: $CONFIG_HASH"
           sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"$CONFIG_HASH"'"/' ./docker/aws-nitro-entrypoint.sh
           grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
