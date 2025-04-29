@@ -32,7 +32,7 @@ CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256su
     echo "ERROR: Failed to calculate config checksum"
     exit 1
 }
-EXPECTED_CONFIG_SHA256="2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
+EXPECTED_CONFIG_SHA256=""
 if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     echo "ERROR: Config checksum mismatch"
     echo "Expected: $EXPECTED_CONFIG_SHA256"
