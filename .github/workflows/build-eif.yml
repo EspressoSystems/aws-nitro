@@ -78,4 +78,3 @@ jobs:
         run: |
           enclaver build --file ./enclaver/enclaver.yaml
           docker images
-          
