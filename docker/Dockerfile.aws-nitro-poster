@@ -7,12 +7,8 @@ EXPOSE 8547
 EXPOSE 8548
 
 # Environment variables
-ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin \
-    HOME=/home/user \
-    ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config \
-    ENCLAVE_CONFIG_TARGET_DIR=/config \
-    PARENT_SOURCE_CONFIG_DIR=/home/ec2-user/config \
-    PARENT_SOURCE_DB_DIR=/home/ec2-user/.arbitrum
+ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin
+ENV HOME=/home/user
 
 COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 RUN chmod +x /aws-nitro-entrypoint.sh
@@ -29,11 +25,11 @@ RUN apt-get update && \
 # Create and set permissions for /home/user/.arbitrum
 RUN mkdir -p \
     "${HOME}/.arbitrum" \
-    "${ENCLAVE_CONFIG_TARGET_DIR}" \
-    "${ENCLAVE_CONFIG_SOURCE_DIR}" && \
+    /config \
+    /mnt/config && \
     chown -R user:user \
-    "${ENCLAVE_CONFIG_SOURCE_DIR}" \
-    "${ENCLAVE_CONFIG_TARGET_DIR}" \
+    /mnt/config \
+    /config \
     "${HOME}"
 
 USER user

@@ -94,5 +94,8 @@ jobs:
       # Run Enclaver build
       - name: Run Enclaver build
         run: |
-          enclaver build --file ./enclaver/enclaver.yaml
+          build_output=$(sudo enclaver build --file enclaver.yaml)
+          echo "Build complete! Output: $build_output"
+          pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
+          echo "PCR0 keccak hash: $(cast keccak $pcr0)"
           docker images

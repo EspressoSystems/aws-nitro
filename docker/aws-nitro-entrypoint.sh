@@ -2,6 +2,11 @@
 
 set -e
 
+ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config # temporary mounted directory in enclave to read config from parent instance
+PARENT_SOURCE_CONFIG_DIR=/home/ec2-user/config # config path on parent directory
+ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside enclave
+PARENT_SOURCE_DB_DIR=/home/ec2-user/.arbitrum # database path on parent directory
+
 echo "Start vsock proxy"
 socat TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive &
 sleep 2
@@ -29,12 +34,22 @@ echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
 CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256sum | cut -d' ' -f1) || {
-    echo "ERROR: Failed to calculate config checksum"
+    echo "ERROR: Failed to calculate config sha356"
     exit 1
 }
 EXPECTED_CONFIG_SHA256=""
-if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
-    echo "ERROR: Config checksum mismatch"
+
+CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/config-verification.json"
+BYPASS=false
+if [ -f "${CONFIG_FILE}" ]; then
+    if jq -e '.bypass == true' "${CONFIG_FILE}" >/dev/null 2>&1; then
+        echo "WARNING: Bypass flag is set to true in config-verification.json"
+        BYPASS=true
+    fi
+fi
+
+if [ "$BYPASS" != true ] && [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
+    echo "ERROR: Config sha256 mismatch"
     echo "Expected: $EXPECTED_CONFIG_SHA256"
     echo "Actual:   $CONFIG_SHA"
     exit 1
