@@ -91,6 +91,11 @@ jobs:
           # Use sed to replace a placeholder in enclaver.yaml with the branch name
           sed -i "s|{{BRANCH_NAME}}|$BRANCH_NAME|g" ./enclaver/enclaver.yaml
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
       # Run Enclaver build
       - name: Run Enclaver build
         run: |
