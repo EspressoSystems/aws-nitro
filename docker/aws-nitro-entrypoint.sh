@@ -34,7 +34,7 @@ echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
 CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256sum | cut -d' ' -f1) || {
-    echo "ERROR: Failed to calculate config sha356"
+    echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
 EXPECTED_CONFIG_SHA256=""
@@ -55,7 +55,7 @@ if [ "$BYPASS" != true ] && [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     exit 1
 fi
 
-echo "Config checksum verified"
+echo "Config sha256 verified"
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
 mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
