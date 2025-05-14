@@ -6,13 +6,11 @@ on:
       config_hash:
         type: string
         description: 'SHA256 hash for the config'
-        required: false
-        default: "2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
+        required: true
       nitro_node_image_tag:
         type: string
         description: 'Nitro node image to build in dockerfile'
-        required: false
-        default: v3.3.2-fcd633f
+        required: true
   push:
     branches:
       - main
@@ -48,7 +46,7 @@ jobs:
         with:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
-          build-args: NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag}}
+          build-args: NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
           push: false
           tags: nitro-image:latest
           load: true
