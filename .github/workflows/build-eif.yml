@@ -11,49 +11,42 @@ on:
         type: string
         description: 'Nitro node image to build in dockerfile'
         required: true
+      enclaver_image_name:
+        type: string
+        description: 'Desired name for enclaver docker image'
+        required: true
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
-  
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Update sha256 hash of config
-      - name: Update config hash in entrypoint
-        run: |
-          CONFIG_HASH="${{ github.event.inputs.config_hash }}"
-          echo "Using hash: $CONFIG_HASH"
-          sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"$CONFIG_HASH"'"/' ./docker/aws-nitro-entrypoint.sh
-          grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
-
-      # Build Docker image
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
-          build-args: NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
+          build-args: |
+            NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
+            CONFIG_HASH=${{ github.event.inputs.config_hash || ''}}
           push: false
           tags: nitro-image:latest
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Run Docker container and execute Enclaver installation
       - name: Run Enclaver installation
         run: |
           echo "Downloading and installing Enclaver..."
@@ -71,19 +64,12 @@ jobs:
           sudo install enclaver-*/enclaver /usr/local/bin/
           rm -rf enclaver.tar.gz enclaver-*
           enclaver --version
-      - name: Preprocess enclaver.yaml with branch name
-        env:
-          BRANCH_NAME: ${{ github.ref_name }}
-        run: |
-          # Use sed to replace a placeholder in enclaver.yaml with the branch name
-          sed -i "s|{{BRANCH_NAME}}|$BRANCH_NAME|g" ./enclaver/enclaver.yaml
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
 
-      # Run Enclaver build
       - name: Run Enclaver build
         run: |
           build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
@@ -91,3 +77,15 @@ jobs:
           pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
           echo "PCR0 keccak hash: $(cast keccak $pcr0)"
           docker images
+      
+      - name: Tag Docker
+        env:
+          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+        if: github.event_name != 'pull_request'
+        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+
+      - name: Push Docker
+        env:
+          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+        if: github.event_name != 'pull_request'
+        run: docker push ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}

@@ -2,6 +2,8 @@
 
 set -e
 
+echo "Using config hash: $EXPECTED_CONFIG_SHA256"
+
 ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config # temporary mounted directory in enclave to read config from parent instance
 PARENT_SOURCE_CONFIG_DIR=/home/ec2-user/config # config path on parent directory
 ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside enclave
@@ -37,7 +39,6 @@ CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256su
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
-EXPECTED_CONFIG_SHA256=""
 
 CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/config-verification.json"
 BYPASS=false

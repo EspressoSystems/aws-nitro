@@ -30,3 +30,8 @@ Finally you can start the enclaver by using the enclaver run command:
 ```shell
 sudo enclaver run enclaver-batch-poster-<BRANCH_NAME>:latest -p 8547:8547
 ```
+
+To safely shut down the batch poster and ensure we write state to the database you need to use the following command:
+```shell
+./shutdown-batch-poster.sh
+```
