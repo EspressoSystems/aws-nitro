@@ -41,18 +41,6 @@ jobs:
           echo "Using hash: $CONFIG_HASH"
           sed -i 's/^EXPECTED_CONFIG_SHA256=.*$/EXPECTED_CONFIG_SHA256="'"$CONFIG_HASH"'"/' ./docker/aws-nitro-entrypoint.sh
           grep "EXPECTED_CONFIG_SHA256" ./docker/aws-nitro-entrypoint.sh
-      
-      # Update dockerfile
-      # - name: Update Nitro Node Image in Dockerfile
-      #   run: |
-      #     NITRO_IMAGE="${{  }}"
-      #     if [ -n "$NITRO_IMAGE" ]; then
-      #       echo "Updating Dockerfile to use custom nitro-node image: $NITRO_IMAGE"
-      #       sed -i 's|^FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:.*$|FROM '"$NITRO_IMAGE"'|' ./docker/Dockerfile.aws-nitro-poster
-      #       grep "^FROM" ./docker/Dockerfile.aws-nitro-poster
-      #     else
-      #       echo "Using default nitro-node image"
-      #     fi
 
       # Build Docker image
       - name: Build Docker image
@@ -60,7 +48,7 @@ jobs:
         with:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
-          build-args: NITRO_TAG=${{github.event.inputs.nitro_node_image_tag}}
+          build-args: NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag}}
           push: false
           tags: nitro-image:latest
           load: true
