@@ -6,30 +6,97 @@ on:
       config_hash:
         type: string
         description: 'SHA256 hash for the config'
-        required: false
-        default: "2b65fec23d880a003ebde5dc037a4e03b82fd6cbfa6d183f17a08bd0ca232bb9"
+        required: true
+      nitro_node_image_tag:
+        type: string
+        description: 'Nitro node image to build in dockerfile'
+        required: true
+      enclaver_image_name:
+        type: string
+        description: 'Desired name for enclaver docker image'
+        required: true
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
-  
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
+      - name: Save Timestamp
+        run: echo "TIMESTAMP=$(date +%s)" >> ${GITHUB_ENV}
+
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Update config hash in entrypoint
+      - uses: docker/login-action@v3
+        name: Login to Github Container Repo
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.aws-nitro-poster
+          build-args: |
+            NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
+            CONFIG_HASH=${{ github.event.inputs.config_hash}}
+          push: false
+          tags: nitro-image:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Enclaver installation
         run: |
-          CONFIG_HASH="${{ github.event.inputs.config_hash }}"
-          echo "Using hash: $CONFIG_HASH"
+          echo "Downloading and installing Enclaver..."
+          ARCH=$(uname -m)
+          LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
+          DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
+    
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Could not find Enclaver download URL"
+            exit 1
+          fi
+    
+          curl -L "$DOWNLOAD_URL" -o enclaver.tar.gz
+          tar xzf enclaver.tar.gz
+          sudo install enclaver-*/enclaver /usr/local/bin/
+          rm -rf enclaver.tar.gz enclaver-*
+          enclaver --version
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Enclaver build
+        run: |
+          build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
+          echo "Build complete! Output: $build_output"
+          pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
+          echo "PCR0 keccak hash: $(cast keccak $pcr0)"
+          docker images
+      
+      - name: Tag Docker
+        env:
+          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+        if: github.event_name != 'pull_request'
+        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+
+      - name: Push Docker
+        env:
+          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+        if: github.event_name != 'pull_request'
+        run: docker push ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
