@@ -24,8 +24,6 @@ After=network.target nfs-server.service
 ExecStart=/usr/bin/socat -d -d VSOCK-LISTEN:8004,fork,keepalive TCP:127.0.0.1:2049,keepalive,retry=5,interval=10
 Restart=always
 RestartSec=10
-StandardOutput=append:/var/log/socat.log
-StandardError=append:/var/log/socat.log
 
 [Install]
 WantedBy=multi-user.target
