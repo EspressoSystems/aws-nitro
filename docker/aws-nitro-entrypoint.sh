@@ -70,7 +70,6 @@ start_vsock_termination_server() {
             if [ "$message" = "TERMINATE" ]; then
                 echo "Received TERMINATE signal"
                 pkill -INT -f "/usr/local/bin/nitro"
-                break
             else
                 echo "Ignoring message: $message"
             fi
