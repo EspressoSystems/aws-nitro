@@ -2,18 +2,16 @@
 
 MESSAGE="TERMINATE"
 PORT=8005
-CID_FILE="/home/ec2-user/.arbitrum/enclave_cid.log"
 
-# Read CID from file
-if [ ! -f "$CID_FILE" ]; then
-    echo "Error: CID file not found at $CID_FILE"
-    exit 1
-fi
+# Get the latest CID from journal logs
+CID=$(sudo journalctl -u socat-vsock.service -n 50 --no-pager | \
+      grep -oP 'accepting connection from AF=40 cid:\K\d+' | \
+      tail -n 1 | \
+      tr -d '[:space:]')
 
-# Extract the CID (last number in the file)
-CID=$(tail -1 "$CID_FILE" | tr -d '[:space:]')
+# Validate CID
 if [[ ! "$CID" =~ ^[0-9]+$ ]]; then
-    echo "Error: No valid CID found in $CID_FILE"
+    echo "Error: No valid CID found in socat-vsock.service logs"
     exit 1
 fi
 
@@ -23,6 +21,7 @@ echo "Attempting VSOCK connection to CID $CID, port $PORT..."
 OUTPUT=$(echo "$MESSAGE" | socat - VSOCK-CONNECT:$CID:$PORT 2>&1)
 EXIT_STATUS=$?
 
+# Handle connection results
 if echo "$OUTPUT" | grep -q "Connection timed out"; then
     echo "Connection timed out for CID $CID: $OUTPUT"
     exit 1
