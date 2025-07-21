@@ -11,5 +11,6 @@ egress:
     - "*"
     - "**"
     - 0.0.0.0/0
+    - ::/0
 ingress:
   - listen_port: 8547
