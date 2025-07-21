@@ -1,5 +1,5 @@
 ARG NITRO_IMAGE_TAG
-FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:${NITRO_IMAGE_TAG}
+FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:li-aws-nitro-dataposter
 RUN curl -L -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
 USER root
 
@@ -10,7 +10,7 @@ EXPOSE 8548
 ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin
 ENV HOME=/home/user
 ARG CONFIG_HASH
-ENV EXPECTED_CONFIG_SHA256=${CONFIG_HASH}
+ENV EXPECTED_CONFIG_SHA256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 RUN chmod +x /aws-nitro-entrypoint.sh
