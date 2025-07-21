@@ -5,13 +5,13 @@ set -e
 
 # Setup Arbitrum directory
 echo "Setting up Arbitrum db directory..."
-mkdir -p /home/ec2-user/.arbitrum || { echo "Failed to create .arbitrum directory"; exit 1; }
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.arbitrum || { echo "Failed to set permissions for .arbitrum"; exit 1; }
+mkdir -p /opt/nitro/arbitrum || { echo "Failed to create .arbitrum directory"; exit 1; }
+sudo chown -R ec2-user:ec2-user /opt/nitro/arbitrum || { echo "Failed to set permissions for .arbitrum"; exit 1; }
 
 # Setup config directory
 echo "Setting up config directory..."
-mkdir -p /home/ec2-user/config || { echo "Failed to create config directory"; exit 1; }
-sudo chown -R ec2-user:ec2-user /home/ec2-user/config || { echo "Failed to set permissions for config"; exit 1; }
+mkdir -p /opt/nitro/config || { echo "Failed to create config directory"; exit 1; }
+sudo chown -R ec2-user:ec2-user /opt/nitro/config || { echo "Failed to set permissions for config"; exit 1; }
 
 # Create systemd service for socat
 echo "Creating systemd service for socat..."
@@ -35,8 +35,8 @@ sudo systemctl enable socat-vsock.service || { echo "Failed to enable socat serv
 sudo systemctl start socat-vsock.service || { echo "Failed to start socat service"; exit 1; }
 
 # Configure NFS exports
-echo "/home/ec2-user/.arbitrum 127.0.0.1/32(rw,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
-echo "/home/ec2-user/config 127.0.0.1/32(ro,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
+echo "/opt/nitro/arbitrum 127.0.0.1/32(rw,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
+echo "/opt/nitro/config 127.0.0.1/32(ro,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
 sudo exportfs -ra || { echo "Failed to reload NFS exports"; exit 1; }
 
 # Enable and start NFS server
