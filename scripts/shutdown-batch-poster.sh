@@ -4,14 +4,14 @@ MESSAGE="TERMINATE"
 PORT=8005
 
 # Get the latest CID from journal logs
-CID=$(sudo journalctl -u socat-vsock.service -n 50 --no-pager | \
+CID=$(sudo journalctl -u socat.service -n 50 --no-pager | \
       grep -oP 'accepting connection from AF=40 cid:\K\d+' | \
       tail -n 1 | \
       tr -d '[:space:]')
 
 # Validate CID
 if [[ ! "$CID" =~ ^[0-9]+$ ]]; then
-    echo "Error: No valid CID found in socat-vsock.service logs"
+    echo "Error: No valid CID found in socat.service logs"
     exit 1
 fi
 
