@@ -22,6 +22,8 @@ on:
     branches:
       - main
 
+run-name: Build Enclaver Docker Image - ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
