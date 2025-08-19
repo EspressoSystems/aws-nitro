@@ -5,15 +5,15 @@ on:
     inputs:
       config_hash:
         type: string
-        description: "SHA256 hash for the config"
+        description: 'SHA256 hash for the config'
         required: true
       nitro_node_image_path:
         type: string
-        description: "Nitro node image to build in dockerfile"
+        description: 'Nitro node image to build in dockerfile'
         required: true
       enclaver_image_name:
         type: string
-        description: "Desired name for enclaver docker image"
+        description: 'Desired name for enclaver docker image'
         required: true
   push:
     branches:
