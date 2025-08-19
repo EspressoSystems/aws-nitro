@@ -29,11 +29,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Save Timestamp
-        run: echo "TIMESTAMP=$(date +%s)" >> ${GITHUB_ENV}
-
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set NITRO_IMAGE_TAG
+        run: |
+          NITRO_TAG="${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}"
+          echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
+          
+          echo "=== Determining Image Tag Strategy ==="
+          echo "Original tag: ${NITRO_TAG}"
+          
+          HEX_PATTERN=$(echo "${NITRO_TAG}" | grep -oE '[a-f0-9]{7,}' | tail -1)
+          echo "Hex pattern found: ${HEX_PATTERN}"
+          
+          if [ -n "${HEX_PATTERN}" ] && echo "${HEX_PATTERN}" | grep -qE '^[a-f0-9]{7,}$'; then
+            echo "Found commit hash in tag: ${HEX_PATTERN}"
+            FINAL_TAG="${HEX_PATTERN}"
+          else
+            echo "No commit hash found, using full tag"
+            FINAL_TAG="${NITRO_TAG}"
+          fi
+          
+          echo "Using for Docker tag: ${FINAL_TAG}"
+          echo "FINAL_TAG=${FINAL_TAG}" >> ${GITHUB_ENV}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,7 +71,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
+            NITRO_IMAGE_TAG=${{ env.NITRO_IMAGE_TAG }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           push: false
           tags: nitro-image:latest
@@ -95,10 +114,10 @@ jobs:
         env:
           ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
         if: github.event_name != 'pull_request'
-        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.FINAL_TAG }}
 
       - name: Push Docker
         env:
           ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
         if: github.event_name != 'pull_request'
-        run: docker push ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+        run: docker push ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.FINAL_TAG }}
