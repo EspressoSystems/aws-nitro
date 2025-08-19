@@ -14,6 +14,12 @@ sudo systemctl enable docker || { echo "ERROR: Failed to enable docker"; exit 1;
 sudo systemctl start docker || { echo "ERROR: Failed to start docker"; exit 1; }
 sudo usermod -aG docker ec2-user || echo "WARNING: Failed to add user to docker group"
 
+# Download docker compose to bin
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+# Give execute permission
+sudo chmod +x /usr/local/bin/docker-compose
+
 # Install enclaver
 echo "Downloading and installing Enclaver..."
 ARCH=$(uname -m)
