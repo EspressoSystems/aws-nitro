@@ -52,7 +52,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_PATH=${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-node:integration')}}
+            NITRO_IMAGE_PATH=${{ github.event.inputs.nitro_node_image_path != '' && github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-node:integration' }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           push: false
           tags: nitro-image:latest
