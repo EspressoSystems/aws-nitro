@@ -1,5 +1,5 @@
-ARG NITRO_IMAGE_TAG
-FROM ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:${NITRO_IMAGE_TAG}
+ARG NITRO_IMAGE_PATH
+FROM ${NITRO_IMAGE_PATH}
 RUN curl -L -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
 USER root
 

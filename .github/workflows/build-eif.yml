@@ -5,15 +5,15 @@ on:
     inputs:
       config_hash:
         type: string
-        description: 'SHA256 hash for the config'
+        description: "SHA256 hash for the config"
         required: true
-      nitro_node_image_tag:
+      nitro_node_image_path:
         type: string
-        description: 'Nitro node image to build in dockerfile'
+        description: "Nitro node image to build in dockerfile"
         required: true
       enclaver_image_name:
         type: string
-        description: 'Desired name for enclaver docker image'
+        description: "Desired name for enclaver docker image"
         required: true
   push:
     branches:
@@ -52,7 +52,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_TAG=${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}
+            NITRO_IMAGE_PATH=${{github.event.inputs.nitro_node_image_path}}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           push: false
           tags: nitro-image:latest
@@ -66,12 +66,12 @@ jobs:
           ARCH=$(uname -m)
           LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
           DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
-    
+
           if [ -z "$DOWNLOAD_URL" ]; then
             echo "Could not find Enclaver download URL"
             exit 1
           fi
-    
+
           curl -L "$DOWNLOAD_URL" -o enclaver.tar.gz
           tar xzf enclaver.tar.gz
           sudo install enclaver-*/enclaver /usr/local/bin/
@@ -90,7 +90,7 @@ jobs:
           pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
           echo "PCR0 keccak hash: $(cast keccak $pcr0)"
           docker images
-      
+
       - name: Tag Docker
         env:
           ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
