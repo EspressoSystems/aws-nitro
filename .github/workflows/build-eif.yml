@@ -11,10 +11,6 @@ on:
         type: string
         description: 'Nitro node image to build in dockerfile'
         required: true
-      enclaver_image_name:
-        type: string
-        description: 'Desired name for enclaver docker image'
-        required: true
   push:
     branches:
       - main
@@ -22,7 +18,7 @@ on:
     branches:
       - main
 
-run-name: Build Enclaver Docker Image - ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+run-name: Build Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_tag || github.ref_name }}
 
 jobs:
   build:
