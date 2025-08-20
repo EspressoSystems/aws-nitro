@@ -5,21 +5,38 @@ set -e
 
 # Setup Arbitrum directory
 echo "Setting up Arbitrum db directory..."
-mkdir -p /home/ec2-user/.arbitrum || { echo "Failed to create .arbitrum directory"; exit 1; }
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.arbitrum || { echo "Failed to set permissions for .arbitrum"; exit 1; }
+mkdir -p /opt/nitro/arbitrum || { echo "Failed to create .arbitrum directory"; exit 1; }
+sudo chown -R ec2-user:ec2-user /opt/nitro/arbitrum || { echo "Failed to set permissions for .arbitrum"; exit 1; }
 
 # Setup config directory
 echo "Setting up config directory..."
-mkdir -p /home/ec2-user/config || { echo "Failed to create config directory"; exit 1; }
-sudo chown -R ec2-user:ec2-user /home/ec2-user/config || { echo "Failed to set permissions for config"; exit 1; }
+mkdir -p /opt/nitro/config || { echo "Failed to create config directory"; exit 1; }
+sudo chown -R ec2-user:ec2-user /opt/nitro/config || { echo "Failed to set permissions for config"; exit 1; }
 
-# Start socat proxy in background with logging
+# Create systemd service for socat
+echo "Creating systemd service for socat..."
+sudo bash -c 'cat << EOF > /etc/systemd/system/socat-vsock.service
+[Unit]
+Description=socat VSOCK to TCP proxy
+After=network.target nfs-server.service
+
+[Service]
+ExecStart=/usr/bin/socat -d -d VSOCK-LISTEN:8004,fork,keepalive TCP:127.0.0.1:2049,keepalive,retry=5,interval=10
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF' || { echo "Failed to create socat systemd service file"; exit 1; }
+
+# Enable and start socat service
 echo "Starting socat proxy..."
-sudo socat VSOCK-LISTEN:8004,fork,keepalive TCP:127.0.0.1:2049,keepalive &
+sudo systemctl enable socat-vsock.service || { echo "Failed to enable socat service"; exit 1; }
+sudo systemctl start socat-vsock.service || { echo "Failed to start socat service"; exit 1; }
 
 # Configure NFS exports
-echo "/home/ec2-user/.arbitrum 127.0.0.1/32(rw,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
-echo "/home/ec2-user/config 127.0.0.1/32(ro,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
+echo "/opt/nitro/arbitrum 127.0.0.1/32(rw,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
+echo "/opt/nitro/config 127.0.0.1/32(ro,insecure,crossmnt,no_subtree_check,sync,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports || { echo "Failed to configure NFS exports"; exit 1; }
 sudo exportfs -ra || { echo "Failed to reload NFS exports"; exit 1; }
 
 # Enable and start NFS server
