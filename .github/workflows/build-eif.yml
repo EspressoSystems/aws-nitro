@@ -97,8 +97,8 @@ jobs:
       
       - name: Tag Docker
         if: github.event_name != 'pull_request'
-        run: docker tag enclaver-batch-poster:latest ghcr.io/espressosystems/aws-nitro-poster:${{ github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f' }}
+        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'v3.3.2-fcd633f' }}
 
       - name: Push Docker
         if: github.event_name != 'pull_request'
-        run: docker push ghcr.io/espressosystems/aws-nitro-poster:${{ github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f' }}
+        run: docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'v3.3.2-fcd633f' }}
