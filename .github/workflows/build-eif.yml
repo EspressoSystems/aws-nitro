@@ -30,7 +30,7 @@ jobs:
 
       - name: Set Image Variables
         run: |
-          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.3.2-fcd633f'}}"
+          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
           NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
           
           echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
