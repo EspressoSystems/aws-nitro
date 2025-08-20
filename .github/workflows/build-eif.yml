@@ -9,7 +9,7 @@ on:
         required: true
       nitro_node_image_path:
         type: string
-        description: 'Nitro node image to build in dockerfile'
+        description: 'Nitro node image path'
         required: true
   push:
     branches:
@@ -30,10 +30,13 @@ jobs:
 
       - name: Set NITRO_IMAGE_TAG
         run: |
-          NITRO_TAG="${{github.event.inputs.nitro_node_image_path || 'v3.3.2-fcd633f'}}"
+          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.3.2-fcd633f'}}"
+          # Extract just the tag from the full path for our image naming
+          NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
           echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
           
-          echo "Using nitro image tag for Docker tagging: ${NITRO_TAG}"
+          echo "Using nitro image: ${NITRO_IMAGE_PATH}"
+          echo "Extracted tag for our image: ${NITRO_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,7 +55,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_PATH=ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:${{ env.NITRO_IMAGE_TAG }}
+            NITRO_IMAGE_PATH=${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.3.2-fcd633f'}}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           push: false
           tags: nitro-image:latest
