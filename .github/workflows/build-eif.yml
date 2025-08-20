@@ -18,7 +18,7 @@ on:
     branches:
       - main
 
-run-name: Build Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_tag || github.ref_name }}
+run-name: Build Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_path || github.ref_name }}
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Set NITRO_IMAGE_TAG
         run: |
-          NITRO_TAG="${{github.event.inputs.nitro_node_image_tag || 'v3.3.2-fcd633f'}}"
+          NITRO_TAG="${{github.event.inputs.nitro_node_image_path || 'v3.3.2-fcd633f'}}"
           echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
           
           echo "Using nitro image tag for Docker tagging: ${NITRO_TAG}"
@@ -52,7 +52,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_TAG=${{ env.NITRO_IMAGE_TAG }}
+            NITRO_IMAGE_PATH=ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:${{ env.NITRO_IMAGE_TAG }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           push: false
           tags: nitro-image:latest
