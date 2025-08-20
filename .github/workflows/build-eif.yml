@@ -96,7 +96,11 @@ jobs:
 
       - name: Tag Docker
         if: github.event_name != 'pull_request'
-        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'v3.3.2-fcd633f' }}
+        run: |
+          echo "Available Docker images:"
+          docker images
+          echo "Tagging enclaver-batch-poster..."
+          docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'v3.3.2-fcd633f' }}
 
       - name: Push Docker
         if: github.event_name != 'pull_request'
