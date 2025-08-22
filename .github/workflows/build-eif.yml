@@ -59,15 +59,10 @@ jobs:
             NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
           labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-            build.github.run_id=${{ github.run_id }}
             build.github.run_number=${{ github.run_number }}
             build.github.actor=${{ github.actor }}
             build.github.ref=${{ github.ref }}
             build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
-            build.workflow.url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
 
           push: false
@@ -103,9 +98,11 @@ jobs:
         run: |
           build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
           echo "Build complete! Output: $build_output"
-          pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"  
-          echo "PCR0 keccak hash: $(cast keccak $pcr0)"
-          echo "ENCLAVE_PCR0=${pcr0}" >> ${GITHUB_ENV}
+          pcr0_raw="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"  
+          pcr0_keccak=$(cast keccak $pcr0_raw)
+          echo "PCR0 raw: $pcr0_raw"
+          echo "PCR0 keccak hash: $pcr0_keccak"
+          echo "ENCLAVE_HASH=${pcr0_keccak}" >> ${GITHUB_ENV}
           docker images
 
       - name: Tag Docker
@@ -116,17 +113,21 @@ jobs:
           echo "Adding PCR0 label to image..."
           cat > Dockerfile.labels << EOF
           FROM enclaver-batch-poster
-          LABEL enclave.pcr0="${{ env.ENCLAVE_PCR0 }}"
+          LABEL org.opencontainers.image.description="AWS Nitro Enclave batch poster image built with Enclaver - PCR0: ${{ env.ENCLAVE_HASH }}"
+          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
+          LABEL org.opencontainers.image.revision="${{ github.sha }}"
+          LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
           LABEL build.github.run_id="${{ github.run_id }}"
           LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EOF
           
           # Build with labels and tag
           docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }} .
-          echo "Tagged with PCR0: ${{ env.ENCLAVE_PCR0 }}"
+          echo "Tagged with PCR0: ${{ env.ENCLAVE_HASH }}"
 
       - name: Push Docker
         if: github.event_name != 'pull_request'
         run: |
           docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
-          echo "Pushed image with PCR0: ${{ env.ENCLAVE_PCR0 }}"
+          echo "Pushed image with PCR0: ${{ env.ENCLAVE_HASH }}"
