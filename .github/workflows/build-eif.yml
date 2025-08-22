@@ -18,7 +18,7 @@ on:
     branches:
       - main
 
-run-name: Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_path }}
+run-name: Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_path || 'Simple Build' }}
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Set Image Variables
         run: |
-          NITRO_IMAGE_PATH="${{ env.NITRO_IMAGE_PATH }}"
+          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
           NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
           
           echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
@@ -101,8 +101,8 @@ jobs:
           echo "Available Docker images:"
           docker images
           echo "Tagging enclaver-batch-poster..."
-          docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG }}
+          docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration' }}
 
       - name: Push Docker
         if: github.event_name != 'pull_request'
-        run: docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG }}
+        run: docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration' }}
