@@ -9,11 +9,7 @@ on:
         required: true
       nitro_node_image_path:
         type: string
-        description: 'Nitro node image to build in dockerfile'
-        required: true
-      enclaver_image_name:
-        type: string
-        description: 'Desired name for enclaver docker image'
+        description: 'Full nitro node image path'
         required: true
   push:
     branches:
@@ -22,18 +18,26 @@ on:
     branches:
       - main
 
-run-name: Build Enclaver Docker Image - ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
+run-name: Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_path || 'Simple Build' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Save Timestamp
-        run: echo "TIMESTAMP=$(date +%s)" >> ${GITHUB_ENV}
-
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set Image Variables
+        run: |
+          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
+          NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
+          
+          echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
+          echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
+          
+          echo "Using nitro image: ${NITRO_IMAGE_PATH}"
+          echo "Extracted tag for naming: ${NITRO_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,8 +56,15 @@ jobs:
           context: .
           file: ./docker/Dockerfile.aws-nitro-poster
           build-args: |
-            NITRO_IMAGE_PATH=${{ github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration' }}
+            NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
+          labels: |
+            build.github.run_number=${{ github.run_number }}
+            build.github.actor=${{ github.actor }}
+            build.github.ref=${{ github.ref }}
+            build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
+            build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
+
           push: false
           tags: nitro-image:latest
           load: true
@@ -87,18 +98,35 @@ jobs:
         run: |
           build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
           echo "Build complete! Output: $build_output"
-          pcr0="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
-          echo "PCR0 keccak hash: $(cast keccak $pcr0)"
+          pcr0_raw="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"  
+          pcr0_keccak=$(cast keccak $pcr0_raw)
+          echo "PCR0 keccak hash: $pcr0_keccak"
+          echo "ENCLAVE_HASH=${pcr0_keccak}" >> ${GITHUB_ENV}
           docker images
 
       - name: Tag Docker
-        env:
-          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
         if: github.event_name != 'pull_request'
-        run: docker tag enclaver-batch-poster ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+        run: |
+          echo "Available Docker images:"
+          docker images
+          echo "Adding PCR0 label to image..."
+          cat > Dockerfile.labels << EOF
+          FROM enclaver-batch-poster
+          LABEL org.opencontainers.image.description="AWS Nitro batch poster image built with enclave hash: ${{ env.ENCLAVE_HASH }}"
+          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
+          LABEL org.opencontainers.image.revision="${{ github.sha }}"
+          LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
+          LABEL build.github.run_id="${{ github.run_id }}"
+          LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EOF
+          
+          # Build with labels and tag
+          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }} .
+          echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
 
       - name: Push Docker
-        env:
-          ENCLAVER_IMAGE_NAME: ${{ github.event.inputs.enclaver_image_name || github.ref_name }}
         if: github.event_name != 'pull_request'
-        run: docker push ghcr.io/espressosystems/aws-nitro-poster:$ENCLAVER_IMAGE_NAME-${{ env.TIMESTAMP }}
+        run: |
+          docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
+          echo "Pushed image with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
