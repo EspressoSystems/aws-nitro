@@ -55,6 +55,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug build variables
+        run: |
+          echo "Debug: NITRO_IMAGE_PATH = ${{ env.NITRO_IMAGE_PATH }}"
+          echo "Debug: CONFIG_HASH = ${{ github.event.inputs.config_hash }}"
+
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
