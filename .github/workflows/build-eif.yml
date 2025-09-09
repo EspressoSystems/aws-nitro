@@ -33,6 +33,11 @@ jobs:
           NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
           NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
           
+          # Add 4cpu suffix if on 4cpu branch
+          if [ "${{ github.ref_name }}" = "4cpu" ]; then
+            NITRO_TAG="${NITRO_TAG}-4cpu"
+          fi
+          
           echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
           echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
           
@@ -122,11 +127,11 @@ jobs:
           EOF
           
           # Build with labels and tag
-          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }} .
+          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration-4cpu' }} .
           echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
 
       - name: Push Docker
         if: github.event_name != 'pull_request'
         run: |
-          docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
+          docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration-4cpu' }}
           echo "Pushed image with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
