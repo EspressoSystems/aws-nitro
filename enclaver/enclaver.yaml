@@ -5,7 +5,7 @@ sources:
   app: "nitro-image:latest"
 defaults:
   memory_mb: 8192
-  cpu_count: 2
+  cpu_count: 4
 egress:
   allow:
     - "*"
