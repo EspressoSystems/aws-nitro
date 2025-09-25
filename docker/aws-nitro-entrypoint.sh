@@ -64,30 +64,9 @@ mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 echo "Checking Mounts:"
 mount -t nfs4
 
-start_vsock_termination_server() {
-    socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
-        while read -r message; do
-            if [ "$message" = "TERMINATE" ]; then
-                echo "Received TERMINATE signal"
-                pkill -INT -f "/usr/local/bin/nitro"
-            elif [ "$message" = "STATS" ]; then
-                echo "=== STATS ==="
-                echo "=== MEM ==="
-                free -h
-                echo "=== NITRO PID ==="
-                pgrep -f "nitro" || { echo "nitro not running" }
-                echo "=== SOCAT ==="
-                pgrep -f "socat" || { echo "socat not running" }
-                echo "=== NITRO MEM ==="
-                ps -p $(pgrep -f "nitro") -o rss --no-headers
-            else
-                echo "Ignoring message: $message"
-            fi
-        done
-    '
-}
 
-start_vsock_termination_server &
+echo "Starting vsock server"
+socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 
 sleep 5
 
