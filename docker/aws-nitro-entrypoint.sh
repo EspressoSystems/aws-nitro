@@ -73,6 +73,8 @@ start_vsock_termination_server() {
             elif [ "$message" = "STATS" ]; then
                 echo "=== STATS ==="
                 echo "=== STATS2 ==="
+                mem=$(free -h)
+                echo "Mem free: $mem"
             else
                 echo "Ignoring message: $message"
             fi
