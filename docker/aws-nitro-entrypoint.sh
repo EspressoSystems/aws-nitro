@@ -66,28 +66,30 @@ mount -t nfs4
 
 start_vsock_termination_server() {
     print_stats() {
-        echo "Total System Memory Usage:"
-        free -h | awk '/Mem:/ {print "Used: " $3 " / Total: " $2 " (Free: " $4 ", Available: " $7 ")"}'
-        echo "Nitro Total RAM Usage:"
+        local output="Received STATS request"
+        output+="Total System Memory Usage:\n"
+        output+=$(free -h | awk '/Mem:/ {print "Used: " $3 " / Total: " $2 " (Free: " $4 ", Available: " $7 ")"}')
+        output+="\nNitro Total RAM Usage:\n"
         nitro_pid=$(pgrep -f "nitro")
         if [ -n "$nitro_pid" ]; then
-            ps -p "$nitro_pid" -o rss --no-headers | awk '{print $1/1024 " MB"}'
+            output+=$(ps -p "$nitro_pid" -o rss --no-headers | awk '{print $1/1024 " MB"}')
         else
-            echo "Nitro process not running"
+            output+="Nitro process not running\n"
         fi
-        echo "Nitro PID:"
+        output+="\nNitro PID:\n"
         if [ -n "$nitro_pid" ]; then
-            echo "$nitro_pid"
+            output+="$nitro_pid\n"
         else
-            echo "Nitro process not found"
+            output+="Nitro process not found\n"
         fi
-        echo "socat PID:"
+        output+="socat PID:\n"
         socat_pid=$(pgrep -f socat)
         if [ -n "$socat_pid" ]; then
-            echo "$socat_pid"
+            output+="$socat_pid\n"
         else
-            echo "socat process not found"
+            output+="socat process not found\n"
         fi
+        echo -e "$output"
     }
     socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
         while read -r message; do
@@ -95,7 +97,6 @@ start_vsock_termination_server() {
                 echo "Received TERMINATE signal"
                 pkill -INT -f "/usr/local/bin/nitro"
             elif [ "$message" = "STATS" ]; then
-                echo "Received STATS request"
                 print_stats
             else
                 echo "Ignoring message: $message"
