@@ -73,9 +73,6 @@ start_vsock_termination_server() {
             elif [ "$message" = "STATS" ]; then
                 echo "=== STATS ==="
                 echo "=== STATS2 ==="
-                free -h 2>/dev/null || echo "free command not available"
-                echo "Nitro PID: $(pgrep -f "nitro" || echo "Not found")"
-                echo "socat PID: $(pgrep -f socat || echo "Not found")"
             else
                 echo "Ignoring message: $message"
             fi
