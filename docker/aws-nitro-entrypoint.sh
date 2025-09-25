@@ -73,12 +73,7 @@ start_vsock_termination_server() {
             elif [ "$message" = "STATS" ]; then
                 echo "=== STATS ==="
                 echo "=== STATS2 ==="
-                mem_line=$(free -h | grep Mem)
-                mem_total=$(echo "$mem_line" | cut -d" " -f2)
-                mem_used=$(echo "$mem_line" | cut -d" " -f3)
-                mem_free=$(echo "$mem_line" | cut -d" " -f4)
-                mem_available=$(echo "$mem_line" | cut -d" " -f7)
-                echo "Memory: Total: $mem_total, Used: $mem_used, Free: $mem_free, Available: $mem_available"
+                free -h | awk '\''/Mem:/ {printf "Memory: Total: %s, Used: %s, Free: %s, Available: %s\n", $2, $3, $4, $7}'\''
             else
                 echo "Ignoring message: $message"
             fi
