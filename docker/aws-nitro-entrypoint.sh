@@ -72,8 +72,14 @@ start_vsock_termination_server() {
                 pkill -INT -f "/usr/local/bin/nitro"
             elif [ "$message" = "STATS" ]; then
                 echo "=== STATS ==="
-                echo "=== STATS2 ==="
-                free -h | awk '\''/Mem:/ {printf "Memory: Total: %s, Used: %s, Free: %s, Available: %s\n", $2, $3, $4, $7}'\''
+                echo "=== MEM ==="
+                free -h
+                echo "=== NITRO PID ==="
+                pgrep -f "nitro" || { echo "nitro not running" }
+                echo "=== SOCAT ==="
+                pgrep -f "socat" || { echo "socat not running" }
+                echo "=== NITRO MEM ==="
+                ps -p $(pgrep -f "nitro") -o rss --no-headers
             else
                 echo "Ignoring message: $message"
             fi
