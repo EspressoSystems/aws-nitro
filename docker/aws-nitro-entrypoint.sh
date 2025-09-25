@@ -97,7 +97,29 @@ start_vsock_termination_server() {
                 stdbuf -oL echo "Received TERMINATE signal"
                 pkill -INT -f "/usr/local/bin/nitro"
             elif [ "$message" = "STATS" ]; then
-                print_stats
+                stdbuf -oL echo "Received STATS request"
+                stdbuf -oL echo "Total System Memory Usage:"
+                stdbuf -oL free -h | awk '\''/Mem:/ {print "Used: " $3 " / Total: " $2 " (Free: " $4 ", Available: " $7 ")"}'\''
+                stdbuf -oL echo "Nitro Total RAM Usage:"
+                nitro_pid=$(pgrep -f "nitro")
+                if [ -n "$nitro_pid" ]; then
+                    stdbuf -oL ps -p "$nitro_pid" -o rss --no-headers | awk '\''{print $1/1024 " MB"}'\''
+                else
+                    stdbuf -oL echo "Nitro process not running"
+                fi
+                stdbuf -oL echo "Nitro PID:"
+                if [ -n "$nitro_pid" ]; then
+                    stdbuf -oL echo "$nitro_pid"
+                else
+                    stdbuf -oL echo "Nitro process not found"
+                fi
+                stdbuf -oL echo "socat PID:"
+                socat_pid=$(pgrep -f socat)
+                if [ -n "$socat_pid" ]; then
+                    stdbuf -oL echo "$socat_pid"
+                else
+                    stdbuf -oL echo "socat process not found"
+                fi
             else
                 stdbuf -oL echo "Ignoring message: $message"
             fi
