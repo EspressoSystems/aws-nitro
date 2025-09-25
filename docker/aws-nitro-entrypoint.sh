@@ -65,63 +65,19 @@ echo "Checking Mounts:"
 mount -t nfs4
 
 start_vsock_termination_server() {
-    print_stats() {
-        local output="Received STATS request\n"
-        output+="Total System Memory Usage:\n"
-        output+=$(stdbuf -oL free -h | awk '/Mem:/ {print "Used: " $3 " / Total: " $2 " (Free: " $4 ", Available: " $7 ")"}')
-        output+="\nNitro Total RAM Usage:\n"
-        nitro_pid=$(pgrep -f "nitro")
-        if [ -n "$nitro_pid" ]; then
-            output+=$(stdbuf -oL ps -p "$nitro_pid" -o rss --no-headers | awk '{print $1/1024 " MB"}')
-        else
-            output+="Nitro process not running\n"
-        fi
-        output+="\nNitro PID:\n"
-        if [ -n "$nitro_pid" ]; then
-            output+="$nitro_pid\n"
-        else
-            output+="Nitro process not found\n"
-        fi
-        output+="socat PID:\n"
-        socat_pid=$(pgrep -f socat)
-        if [ -n "$socat_pid" ]; then
-            output+="$socat_pid\n"
-        else
-            output+="socat process not found\n"
-        fi
-        stdbuf -oL echo -e "$output"
-    }
-    stdbuf -oL socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
+    socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
         while read -r message; do
             if [ "$message" = "TERMINATE" ]; then
-                stdbuf -oL echo "Received TERMINATE signal"
+                echo "Received TERMINATE signal"
                 pkill -INT -f "/usr/local/bin/nitro"
             elif [ "$message" = "STATS" ]; then
-                stdbuf -oL echo "Received STATS request"
-                stdbuf -oL echo "Total System Memory Usage:"
-                stdbuf -oL free -h | awk '\''/Mem:/ {print "Used: " $3 " / Total: " $2 " (Free: " $4 ", Available: " $7 ")"}'\''
-                stdbuf -oL echo "Nitro Total RAM Usage:"
-                nitro_pid=$(pgrep -f "nitro")
-                if [ -n "$nitro_pid" ]; then
-                    stdbuf -oL ps -p "$nitro_pid" -o rss --no-headers | awk '\''{print $1/1024 " MB"}'\''
-                else
-                    stdbuf -oL echo "Nitro process not running"
-                fi
-                stdbuf -oL echo "Nitro PID:"
-                if [ -n "$nitro_pid" ]; then
-                    stdbuf -oL echo "$nitro_pid"
-                else
-                    stdbuf -oL echo "Nitro process not found"
-                fi
-                stdbuf -oL echo "socat PID:"
-                socat_pid=$(pgrep -f socat)
-                if [ -n "$socat_pid" ]; then
-                    stdbuf -oL echo "$socat_pid"
-                else
-                    stdbuf -oL echo "socat process not found"
-                fi
+                echo "=== STATS ==="
+                echo "=== STATS2 ==="
+                free -h 2>/dev/null || echo "free command not available"
+                echo "Nitro PID: $(pgrep -f "nitro" || echo "Not found")"
+                echo "socat PID: $(pgrep -f socat || echo "Not found")"
             else
-                stdbuf -oL echo "Ignoring message: $message"
+                echo "Ignoring message: $message"
             fi
         done
     '
