@@ -47,9 +47,11 @@ while read -r message; do
         echo "=== ENCLAVE MEM ==="
         free -h | awk '/Mem:/ {printf "Total: %s, Used: %s, Free: %s, Available: %s\n", $2, $3, $4, $7}'
         echo "=== ENCLAVE CPU ==="
-        top -bn1 | head -n3 | tail -n1 | awk '{printf "User: %s%%, System: %s%%, Idle: %s%%\n", $2, $4, $8}'
+        top -bn1 | grep "%Cpu(s)" | awk '{printf "CPU Usage: %.1f%% (User: %.1f%%, System: %.1f%%)\n", $2 + $4, $2, $4}'
         echo "=== SOCAT ==="
         pgrep -f "socat.*TCP-LISTEN:2049" || { echo "socat not running"; }
+        echo "=== SOCAT LOGS ==="
+        tail -30 cat /tmp/socat.log
         echo "=== NITRO PID ==="
         nitro_pid=$(pgrep -f "/usr/local/bin/nitro" || echo "none")
         if [ "$nitro_pid" = "none" ]; then
