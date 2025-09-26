@@ -10,7 +10,7 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-socat TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive >/dev/null 2>&1 &
+socat -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive &>/tmp/socat.log &
 sleep 2
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
@@ -64,20 +64,9 @@ mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 echo "Checking Mounts:"
 mount -t nfs4
 
-start_vsock_termination_server() {
-    socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
-        while read -r message; do
-            if [ "$message" = "TERMINATE" ]; then
-                echo "Received TERMINATE signal"
-                pkill -INT -f "/usr/local/bin/nitro"
-            else
-                echo "Ignoring message: $message"
-            fi
-        done
-    '
-}
 
-start_vsock_termination_server &
+echo "Starting vsock server"
+socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 
 sleep 5
 

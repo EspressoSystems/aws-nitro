@@ -13,6 +13,8 @@ ARG CONFIG_HASH
 ENV EXPECTED_CONFIG_SHA256=${CONFIG_HASH}
 
 COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
+COPY --chown=user:user docker/server.sh /server.sh
+RUN chmod +x /server.sh
 RUN chmod +x /aws-nitro-entrypoint.sh
 
 # Install required packages
