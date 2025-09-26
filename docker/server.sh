@@ -8,40 +8,7 @@ while read -r message; do
     elif [ "$message" = "TERMINATE_SOCAT" ]; then
         echo "Received TERMINATE_SOCAT signal"
         pkill -KILL -f "socat.*TCP-LISTEN:2049" || echo "Failed to kill socat"
-        socat -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,retry=10,interval=2 >>/home/user/.arbitrum/socat.log 2>&1 &
-    elif [ "$message" = "KILL_NITRO" ]; then
-        echo "Received KILL_NITRO signal"
-        echo "Attempting SIGTERM for nitro..."
-        pkill -TERM -f "/usr/local/bin/nitro" || {
-            echo "SIGTERM failed, attempting SIGKILL..."
-            pkill -KILL -f "/usr/local/bin/nitro" || echo "Failed to kill nitro"
-        }
-        sleep 2
-        if pgrep -f "/usr/local/bin/nitro" > /dev/null; then
-            echo "Nitro still running after pkill"
-        else
-            echo "Nitro terminated"
-        fi
-    elif [ "$message" = "ADVANCED_KILL" ]; then
-        echo "Received ADVANCED_KILL signal"
-        nitro_pid=$(pgrep -f "/usr/local/bin/nitro" || echo "none")
-        if [ "$nitro_pid" = "none" ]; then
-            echo "Nitro not running"
-            continue
-        fi
-        echo "Targeting PID $nitro_pid"
-        for signal in TERM HUP QUIT KILL; do
-            echo "Attempting SIG$signal..."
-            kill -"$signal" "$nitro_pid" 2>/dev/null || echo "SIG$signal failed"
-            sleep 1
-            if ! kill -0 "$nitro_pid" 2>/dev/null; then
-                echo "Nitro terminated with SIG$signal"
-                break
-            fi
-        done
-        if kill -0 "$nitro_pid" 2>/dev/null; then
-            echo "Nitro still running after all signals"
-        fi
+        socat -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive &>/tmp/socat.log &
     elif [ "$message" = "STATS" ]; then
         echo "=== STATS ==="
         echo "=== ENCLAVE MEM ==="
