@@ -8,7 +8,7 @@ while read -r message; do
     elif [ "$message" = "TERMINATE_SOCAT" ]; then
         echo "Received TERMINATE_SOCAT signal"
         pkill -KILL -f "socat.*TCP-LISTEN:2049" || echo "Failed to kill socat"
-        socat TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive >/dev/null 2>&1 &
+        socat -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,retry=10,interval=2 >>/home/user/.arbitrum/socat.log 2>&1 &
     elif [ "$message" = "KILL_NITRO" ]; then
         echo "Received KILL_NITRO signal"
         echo "Attempting SIGTERM for nitro..."
