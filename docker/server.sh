@@ -46,6 +46,8 @@ while read -r message; do
         echo "=== STATS ==="
         echo "=== ENCLAVE MEM ==="
         free -h | awk '/Mem:/ {printf "Total: %s, Used: %s, Free: %s, Available: %s\n", $2, $3, $4, $7}'
+        echo "=== ENCLAVE CPU ==="
+        top -bn1 | head -n3 | tail -n1 | awk '{printf "User: %s%%, System: %s%%, Idle: %s%%\n", $2, $4, $8}'
         echo "=== SOCAT ==="
         pgrep -f "socat.*TCP-LISTEN:2049" || { echo "socat not running"; }
         echo "=== NITRO PID ==="
@@ -58,6 +60,8 @@ while read -r message; do
             ps -p "$nitro_pid" -o rss --no-headers | awk '{printf "Memory Used: %.2f MB\n", $1/1024}'
             echo "=== NITRO STATE ==="
             ps -p "$nitro_pid" -o state,cmd --no-headers || echo "No state info"
+            echo "=== NITRO CPU ==="
+            ps -p "$nitro_pid" -o %cpu --no-headers | awk '{printf "CPU Used: %.2f%%\n", $1}'
         fi  
     else
         echo "Ignoring message: $message"
