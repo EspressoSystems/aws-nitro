@@ -63,7 +63,7 @@ while read -r message; do
             echo "=== NITRO CPU ==="
             ps -p "$nitro_pid" -o %cpu --no-headers | awk '{printf "CPU Used: %.2f%%\n", $1}'
         fi
-    elif ["$message" = "LOG"]; then
+    elif [ "$message" = "LOG" ]; then
         tail -n 30 /tmp/socat.log
     else
         echo "Ignoring message: $message"
