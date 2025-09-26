@@ -50,8 +50,6 @@ while read -r message; do
         top -bn1 | grep "%Cpu(s)" | awk '{printf "CPU Usage: %.1f%% (User: %.1f%%, System: %.1f%%)\n", $2 + $4, $2, $4}'
         echo "=== SOCAT ==="
         pgrep -f "socat.*TCP-LISTEN:2049" || { echo "socat not running"; }
-        echo "=== SOCAT LOGS ==="
-        tail -30 cat /tmp/socat.log
         echo "=== NITRO PID ==="
         nitro_pid=$(pgrep -f "/usr/local/bin/nitro" || echo "none")
         if [ "$nitro_pid" = "none" ]; then
@@ -64,7 +62,9 @@ while read -r message; do
             ps -p "$nitro_pid" -o state,cmd --no-headers || echo "No state info"
             echo "=== NITRO CPU ==="
             ps -p "$nitro_pid" -o %cpu --no-headers | awk '{printf "CPU Used: %.2f%%\n", $1}'
-        fi  
+        fi
+    elif ["$message" = "LOG"]; then
+        tail -n 30 /tmp/socat.log
     else
         echo "Ignoring message: $message"
     fi
