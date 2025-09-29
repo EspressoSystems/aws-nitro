@@ -8,7 +8,7 @@ while read -r message; do
     elif [ "$message" = "TERMINATE_SOCAT" ]; then
         echo "Received TERMINATE_SOCAT signal"
         pkill -KILL -f "socat.*TCP-LISTEN:2049" || echo "Failed to kill socat"
-        socat -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive &>/tmp/socat.log &
+        socat -d -d -T10 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive,ignoreeof VSOCK-CONNECT:3:8004,keepalive,connect-timeout=5 &> /tmp/socat.log &
     elif [ "$message" = "STATS" ]; then
         echo "=== STATS ==="
         echo "=== ENCLAVE MEM ==="
@@ -31,7 +31,7 @@ while read -r message; do
             ps -p "$nitro_pid" -o %cpu --no-headers | awk '{printf "CPU Used: %.2f%%\n", $1}'
         fi
     elif [ "$message" = "LOG" ]; then
-        tail -n 30 /tmp/socat.log
+        tail -n 100 /tmp/socat.log
     else
         echo "Ignoring message: $message"
     fi
