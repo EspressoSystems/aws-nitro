@@ -59,7 +59,7 @@ fi
 echo "Config sha256 verified"
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
-mount -t nfs4 -o rsize=1048576,wsize=1048576,proto=tcp,sync,noatime "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
+mount -t nfs4 -o rsize=1048576,wsize=1048576 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
