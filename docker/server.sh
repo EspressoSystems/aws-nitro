@@ -8,7 +8,7 @@ while read -r message; do
     elif [ "$message" = "TERMINATE_SOCAT" ]; then
         echo "Received TERMINATE_SOCAT signal"
         pkill -KILL -f "socat.*TCP-LISTEN:2049" || echo "Failed to kill socat"
-        socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,nodelay,rcvbuf=8192,sndbuf=8192 VSOCK-CONNECT:3:8004,connect-timeout=10,retry=5,interval=5,rcvbuf=8192,sndbuf=8192 &> /tmp/socat.log &
+        socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,keepalive,reuseaddr,rcvbuf=8192,sndbuf=8192 VSOCK-CONNECT:3:8004,keepalive,connect-timeout=10,retry=5,interval=5,rcvbuf=8192,sndbuf=8192 &> /tmp/socat.log &
     elif [ "$message" = "STATS" ]; then
         echo "=== STATS ==="
         echo "=== ENCLAVE MEM ==="
