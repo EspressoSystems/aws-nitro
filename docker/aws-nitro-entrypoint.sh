@@ -10,7 +10,7 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-socat -d -d -d -d -T300 -b262144 TCP-LISTEN:2049,bind=127.0.0.1,fork,keepalive,reuseaddr,rcvbuf=65536,sndbuf=65536,keepidle=20,keepintvl=5,keepcnt=3 VSOCK-CONNECT:3:8004,keepalive,connect-timeout=10,retry=5,interval=5,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
+socat -d -d -d -d -b1048576 TCP-LISTEN:2049,bind=127.0.0.1,fork,keepalive,reuseaddr VSOCK-CONNECT:3:8004,keepalive &> /tmp/socat.log &
 sleep 3
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
