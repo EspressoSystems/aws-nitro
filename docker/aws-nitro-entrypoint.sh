@@ -58,17 +58,17 @@ fi
 
 echo "Config sha256 verified"
 
+echo "Starting vsock server"
+socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
+sleep 5
+
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
 mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
+sleep 2
 
-
-echo "Starting vsock server"
-socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
-
-sleep 3
 
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
