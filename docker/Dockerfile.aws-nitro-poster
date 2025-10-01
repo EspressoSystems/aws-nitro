@@ -24,9 +24,15 @@ RUN apt-get update && \
     nfs-common \
     procps \
     net-tools \
-    iproute2 && \
+    iproute2 \
+    openssh-server && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /var/run/sshd && \
+    echo 'root:password' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
 # Create and set permissions for /home/user/.arbitrum
 RUN mkdir -p \
