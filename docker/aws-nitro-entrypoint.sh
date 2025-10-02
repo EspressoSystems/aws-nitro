@@ -59,25 +59,14 @@ fi
 echo "Config sha256 verified"
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
-mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
+mount -t nfs4 -o rsize=8194,wsize=8194 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
 
-start_vsock_termination_server() {
-    socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:'
-        while read -r message; do
-            if [ "$message" = "TERMINATE" ]; then
-                echo "Received TERMINATE signal"
-                pkill -INT -f "/usr/local/bin/nitro"
-            else
-                echo "Ignoring message: $message"
-            fi
-        done
-    '
-}
-
-start_vsock_termination_server &
+echo "Starting vsock server"
+socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
+sleep 5
 
 sleep 5
 
