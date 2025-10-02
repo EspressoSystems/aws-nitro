@@ -71,5 +71,4 @@ mount -t nfs4
 
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
-  --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" \
-  --cache 4096
+  --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json"
