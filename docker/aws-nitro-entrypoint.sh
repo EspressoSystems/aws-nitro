@@ -10,7 +10,7 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-sudo bash -c 'cat << EOF > /tmp/socat.sh
+bash -c 'cat << EOF > /tmp/socat.sh
 #!/bin/bash
 set -e
 while true; do
@@ -20,7 +20,7 @@ while true; do
   sleep 10
 done
 EOF' || { echo "Failed to create socat.sh"; exit 1; }
-sudo chmod +x /tmp/socat.sh
+chmod +x /tmp/socat.sh
 /tmp/socat.sh &
 
 
