@@ -10,7 +10,26 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
+bash -c 'cat << EOF > /etc/systemd/system/vsock.service
+[Unit]
+Description=socat VSOCK to TCP proxy
+After=network.target nfs-server.service
+
+[Service]
+ExecStart=/usr/bin/socat -d -d -d -d -T5 TCP-LISTEN:2049,bind=127.0.0.1,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF' || { echo "Failed to create socat systemd service file"; exit 1; }
+
+# Enable and start socat service
+echo "Starting socat proxy..."
+systemctl daemon-reload || { echo "failed to reload"; exit 1;}
+systemctl enable vsock.service || { echo "Failed to enable socat service"; exit 1; }
+systemctl start vsock.service || { echo "Failed to start socat service"; exit 1; }
+# socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
 sleep 3
 
 socat VSOCK-LISTEN:22,reuseaddr,fork TCP:localhost:22 &
