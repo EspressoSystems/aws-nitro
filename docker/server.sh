@@ -32,6 +32,12 @@ while read -r message; do
         fi
         echo "=== NETSTAT ==="
         netstat -tunap | grep -i 2049
+        ss -anp | awk 'NR>1 && $3 ~ /^[0-9]+$/ {send += $3; recv += $4} END {print "Total Send-Q: " send " bytes, Recv-Q: " recv " bytes, Grand Total: " (send + recv) " bytes"}'
+        echo "=== MEMORY STATS ==="
+        sysctl net.core.rmem_max
+        sysctl net.core.wmem_max
+        sysctl net.ipv4.tcp_rmem
+        sysctl net.ipv4.tcp_wmem
     else
         echo "Ignoring message: $message"
     fi
