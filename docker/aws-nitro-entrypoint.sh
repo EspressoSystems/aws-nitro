@@ -63,7 +63,7 @@ socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 sleep 5
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
-mount -t nfs4 -o rsize=65536,wsize=65536 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
+mount -t nfs4 -o rsize=16384,wsize=16384 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
