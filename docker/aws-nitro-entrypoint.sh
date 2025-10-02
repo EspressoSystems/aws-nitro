@@ -10,26 +10,13 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-bash -c 'cat << EOF > /tmp/socat.sh
-#!/bin/bash
-set -e
-while true; do
-  echo "Starting socat at \$(date)" >> /tmp/socat.log
-  /usr/bin/socat -d -d -d -d -T5 TCP-LISTEN:2049,bind=127.0.0.1,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log
-  echo "socat exited with \$? at \$(date), restarting in 10 seconds" >> /tmp/socat.log
-  sleep 10
-done
-EOF' || { echo "Failed to create socat.sh"; exit 1; }
-chmod +x /tmp/socat.sh
-/tmp/socat.sh &
+./socat.sh &
 
 
 # Enable and start socat service
 echo "Starting socat proxy..."
 # socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
 sleep 3
-
-socat VSOCK-LISTEN:22,reuseaddr,fork TCP:localhost:22 &
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
 mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_CONFIG_DIR}" "${ENCLAVE_CONFIG_SOURCE_DIR}"
