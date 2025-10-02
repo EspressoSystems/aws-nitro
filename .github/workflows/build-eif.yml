@@ -32,6 +32,7 @@ jobs:
         run: |
           NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
           NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
+          NITRO_TAG="${NITRO_TAG}-4cpu-fix"
           
           echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
           echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
