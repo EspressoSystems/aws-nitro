@@ -10,25 +10,23 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-bash -c 'cat << EOF > /etc/systemd/system/vsock.service
-[Unit]
-Description=socat VSOCK to TCP proxy
-After=network.target nfs-server.service
+sudo bash -c 'cat << EOF > /tmp/socat.sh
+#!/bin/bash
+set -e
+LOGFILE=/tmp/socat-vsock.log
+while true; do
+  echo "Starting socat at \$(date)" >> \$LOGFILE
+  /usr/bin//usr/bin/socat -d -d -d -d -T5 TCP-LISTEN:2049,bind=127.0.0.1,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
+  echo "socat exited with \$? at \$(date), restarting in 10 seconds" >> /tmp/socat.log
+  sleep 10
+done
+EOF' || { echo "Failed to create socat.sh"; exit 1; }
+sudo chmod +x /tmp/socat.sh
+/tmp/socat.sh &
 
-[Service]
-ExecStart=/usr/bin/socat -d -d -d -d -T5 TCP-LISTEN:2049,bind=127.0.0.1,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF' || { echo "Failed to create socat systemd service file"; exit 1; }
 
 # Enable and start socat service
 echo "Starting socat proxy..."
-systemctl daemon-reload || { echo "failed to reload"; exit 1;}
-systemctl enable vsock.service || { echo "Failed to enable socat service"; exit 1; }
-systemctl start vsock.service || { echo "Failed to start socat service"; exit 1; }
 # socat -d -d -d -d TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,rcvbuf=65536,sndbuf=65536 VSOCK-CONNECT:3:8004,rcvbuf=65536,sndbuf=65536 &> /tmp/socat.log &
 sleep 3
 

@@ -35,7 +35,7 @@ while read -r message; do
         echo "=== VSOCK ==="
         ss -A vsock
     elif [ "$message" = "LOG" ]; then
-        journalctl -u socat.service -n 150
+        tail -n 150 /tmp/socat.log
     else
         echo "Ignoring message: $message"
     fi
