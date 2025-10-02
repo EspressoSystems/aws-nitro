@@ -16,7 +16,6 @@ COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 COPY --chown=user:user docker/server.sh /server.sh
 COPY --chown=user:user docker/socat.sh /socat.sh
 RUN chmod +x /server.sh
-RUN chmod +x /socat.sh
 RUN chmod +x /aws-nitro-entrypoint.sh
 
 # Install required packages

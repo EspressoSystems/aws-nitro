@@ -10,13 +10,8 @@ ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside 
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
 echo "Start vsock proxy"
-# ./socat.sh &
-
-
-# Enable and start socat service
-echo "Starting socat proxy..."
-socat TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive >/dev/null 2>&1 &
-sleep 3
+socat -b12288 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive,sndbuf-late=12288,rcvbuf-late=12288 VSOCK-CONNECT:3:8004,keepalive,sndbuf-late=12288,rcvbuf-late=12288 >/dev/null 2>&1 &
+sleep 2
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
 mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_CONFIG_DIR}" "${ENCLAVE_CONFIG_SOURCE_DIR}"
@@ -68,11 +63,10 @@ socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 sleep 5
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
-mount -t nfs4 -o rsize=8194,wsize=8194 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
+mount -t nfs4 -o rsize=12288,wsize=12288 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
-sleep 2
 
 
 exec /usr/local/bin/nitro \
