@@ -17,7 +17,7 @@ echo 'net.core.wmem_max = 16777216' >> /etc/sysctl.conf
 sysctl -p
 
 echo "Start vsock proxy"
-socat -b4194304 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,rcvbuf-late=16384,sndbuf-late=16384 >/dev/null 2>&1 &
+socat -b2097152 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,rcvbuf-late=16384,sndbuf-late=16384 >/dev/null 2>&1 &
 sleep 2
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
@@ -70,7 +70,7 @@ socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 sleep 5
 
 echo "Mount NFS database from ${PARENT_SOURCE_DB_DIR}"
-mount -t nfs4 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
+mount -t nfs4 -o rsize=524288,wsize=524288 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/home/user/.arbitrum"
 
 echo "Checking Mounts:"
 mount -t nfs4
