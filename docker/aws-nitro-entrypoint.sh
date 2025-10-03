@@ -17,7 +17,7 @@ echo 'net.core.wmem_max = 16777216' >> /etc/sysctl.conf
 sysctl -p
 
 echo "Start vsock proxy"
-socat -b819200 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,rcvbuf-late=16384,sndbuf-late=16384 >/dev/null 2>&1 &
+socat -b819200 TCP-LISTEN:2049,bind=127.0.0.1,fork,reuseaddr,keepalive VSOCK-CONNECT:3:8004,keepalive,rcvbuf-late=204800,sndbuf-late=204800 >/dev/null 2>&1 &
 sleep 2
 
 echo "Mount config from ${PARENT_SOURCE_CONFIG_DIR} to ${ENCLAVE_CONFIG_SOURCE_DIR}"
