@@ -4,8 +4,8 @@ target: "enclaver-batch-poster:latest"
 sources:
   app: "nitro-image:latest"
 defaults:
-  memory_mb: 16384
-  cpu_count: 4
+  memory_mb: 8192
+  cpu_count: 2
 egress:
   allow:
     - "*"
