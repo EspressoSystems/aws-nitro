@@ -13,6 +13,7 @@ ENV AWS_CONFIG_FILE="/config/aws_config"
 ENV AWS_SHARED_CREDENTIALS_FILE="/config/aws_credentials"
 ARG CONFIG_HASH
 ENV EXPECTED_CONFIG_SHA256=${CONFIG_HASH}
+ENV NITRO_CONFIG="caffnode_config.json"
 
 COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 COPY --chown=user:user docker/server.sh /server.sh

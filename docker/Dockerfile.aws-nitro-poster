@@ -11,6 +11,7 @@ ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin
 ENV HOME=/home/user
 ARG CONFIG_HASH
 ENV EXPECTED_CONFIG_SHA256=${CONFIG_HASH}
+ENV NITRO_CONFIG="poster_config.json"
 
 COPY --chown=user:user docker/aws-nitro-entrypoint.sh /aws-nitro-entrypoint.sh
 COPY --chown=user:user docker/server.sh /server.sh

@@ -3,17 +3,18 @@
 set -e
 
 echo "Using config hash: $EXPECTED_CONFIG_SHA256"
+echo "Using nitro config: $NITRO_CONFIG"
 
-ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config # temporary mounted directory in enclave to read config from parent instance
+ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config      # temporary mounted directory in enclave to read config from parent instance
 PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config # config path on parent directory
-ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside enclave
-PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
+ENCLAVE_CONFIG_TARGET_DIR=/config          # directory to copy config contents to inside enclave
+PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum   # database path on parent directory
 
 echo "Set memory"
-echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >> /etc/sysctl.conf
-echo 'net.ipv4.tcp_wmem = 4096 87380 16777216' >> /etc/sysctl.conf
-echo 'net.core.rmem_max = 16777216' >> /etc/sysctl.conf
-echo 'net.core.wmem_max = 16777216' >> /etc/sysctl.conf
+echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >>/etc/sysctl.conf
+echo 'net.ipv4.tcp_wmem = 4096 87380 16777216' >>/etc/sysctl.conf
+echo 'net.core.rmem_max = 16777216' >>/etc/sysctl.conf
+echo 'net.core.wmem_max = 16777216' >>/etc/sysctl.conf
 sysctl -p
 
 echo "Start vsock proxy"
@@ -42,7 +43,7 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256sum | cut -d' ' -f1) || {
+CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/$NITRO_CONFIG" | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
@@ -75,7 +76,6 @@ mount -t nfs4 -o rsize=16384,wsize=16384 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/h
 echo "Checking Mounts:"
 mount -t nfs4
 
-
 exec /usr/local/bin/nitro \
-  --validation.wasm.enable-wasmroots-check=false \
-  --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json"
+    --validation.wasm.enable-wasmroots-check=false \
+    --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/$NITRO_CONFIG"
