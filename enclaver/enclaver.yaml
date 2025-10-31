@@ -2,7 +2,7 @@ version: v1
 name: "batcher"
 target: "enclaver-batch-poster:latest"
 sources:
-  app: "nitro-image:build"
+  app: "nitro-image:latest"
 defaults:
   memory_mb: 10240
   cpu_count: 2

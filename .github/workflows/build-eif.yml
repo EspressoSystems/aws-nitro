@@ -42,26 +42,26 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Build app package with Nix
+      - name: Build Nix app package
         run: |
-          echo "=== NIX BUILD DEBUG ==="
+          echo "=== NIX APP BUILD ==="
           echo "Git SHA: ${{ github.sha }}"
           echo "Nix version: $(nix --version)"
-          echo "Starting Nix build..."
+          echo "Starting Nix app build..."
 
           nix build .#app --out-link result-app
 
-          echo "Nix build completed"
+          echo "Nix app build completed"
           echo "App package path: $(readlink result-app)"
           echo "App package contents:"
-          find result-app -type f -exec ls -la {} \; | head -20
+          find result-app -type f -exec ls -la {} \; | head -10
 
           # Hash the Nix package for comparison
           NIX_PACKAGE_HASH=$(find result-app -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
           echo "NIX_PACKAGE_HASH=${NIX_PACKAGE_HASH}" >> ${GITHUB_ENV}
           echo "Nix package hash: ${NIX_PACKAGE_HASH}"
 
-      - name: Build Docker image from Nix package
+      - name: Build deterministic Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -77,8 +77,9 @@ jobs:
             build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
             build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
           push: false
-          tags: nitro-image:build
+          tags: nitro-image:latest
           load: true
+          no-cache: true
 
       - name: Debug Docker Image
         run: |
@@ -87,38 +88,23 @@ jobs:
           docker images
 
           echo "Nitro image layers:"
-          docker history nitro-image:build || echo "Could not get history"
+          docker history nitro-image:latest || echo "Could not get history"
 
           echo "Nitro image size:"
-          docker images nitro-image:build --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+          docker images nitro-image:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 
-          # Get image digest (may be empty for locally built images)
-          NITRO_IMAGE_DIGEST=$(docker inspect nitro-image:build --format='{{index .RepoDigests 0}}' 2>/dev/null | head -1 || docker inspect nitro-image:build --format='{{.Id}}' 2>/dev/null || echo "unknown")
-          # Clean up any newlines or extra spaces
-          NITRO_IMAGE_DIGEST=$(echo "$NITRO_IMAGE_DIGEST" | tr -d '\n\r' | xargs)
-          echo "NITRO_IMAGE_DIGEST=${NITRO_IMAGE_DIGEST}" >> ${GITHUB_ENV}
-          echo "Docker image digest/ID: '${NITRO_IMAGE_DIGEST}'"
-
-          # Hash the container filesystem (if possible)
-          echo "Attempting to extract container filesystem hash..."
-          CONTAINER_ID=$(docker create nitro-image:build)
+          # Hash the container filesystem (deterministic check)
+          echo "Container filesystem hash (deterministic):"
+          CONTAINER_ID=$(docker create nitro-image:latest)
           docker export $CONTAINER_ID | sha256sum | cut -d' ' -f1 | tee container_fs_hash.txt
           docker rm $CONTAINER_ID
           CONTAINER_FS_HASH=$(cat container_fs_hash.txt)
           echo "CONTAINER_FS_HASH=${CONTAINER_FS_HASH}" >> ${GITHUB_ENV}
           echo "Container filesystem hash: ${CONTAINER_FS_HASH}"
 
-      - uses: docker/login-action@v3
-        name: Login to Github Container Repo
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Enclaver installation
+      - name: Install Enclaver CLI
         run: |
-          echo "Downloading and installing Enclaver..."
+          echo "=== INSTALLING ENCLAVER CLI ==="
           ARCH=$(uname -m)
           LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
           DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
@@ -134,24 +120,19 @@ jobs:
           rm -rf enclaver.tar.gz enclaver-*
           enclaver --version
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Run Enclaver build
+      - name: Build EIF with Enclaver
         run: |
-          echo "=== ENCLAVER BUILD DEBUG ==="
-          echo "Enclaver version: $(enclaver --version 2>/dev/null || echo 'unknown')"
-          echo "Docker images before enclaver build:"
+          echo "=== ENCLAVER EIF BUILD ==="
+          echo "Enclaver version: $(enclaver --version)"
+          echo "Docker images before EIF build:"
           docker images
 
           echo "Enclaver YAML config:"
           cat ./enclaver/enclaver.yaml
 
-          echo "Starting enclaver build..."
+          echo "Starting EIF build..."
           build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
-          echo "Build complete! Full output:"
+          echo "EIF build complete! Full output:"
           echo "$build_output"
 
           pcr0_raw="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"
@@ -169,24 +150,22 @@ jobs:
 
       - name: Debug Reproducibility
         run: |
-          echo "=== REPRODUCIBILITY DEBUG ==="
+          echo "=== REPRODUCIBILITY DEBUG (FULL DEPLOYMENT CONTEXT) ==="
           echo "PCR0 Raw: ${{ env.PCR0_RAW }}"
           echo "PCR0 Keccak: ${{ env.PCR0_KECCAK }}"
           echo "Enclave Hash: ${{ env.ENCLAVE_HASH }}"
           echo "Nix Package Hash: ${{ env.NIX_PACKAGE_HASH }}"
-          echo "Docker Image Digest: ${{ env.NITRO_IMAGE_DIGEST }}"
           echo "Container FS Hash: ${{ env.CONTAINER_FS_HASH }}"
           echo "Nitro Image: ${{ env.NITRO_IMAGE_PATH }}"
           echo "Git SHA: ${{ github.sha }}"
           echo "Run ID: ${{ github.run_id }}"
           echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-          # Save all hashes for comparison across runs
+          # Save hashes for comparison across runs
           echo "${{ env.ENCLAVE_HASH }}" > enclave_hash.txt
           echo "${{ env.PCR0_RAW }}" > pcr0_raw.txt
           echo "${{ env.PCR0_KECCAK }}" > pcr0_keccak.txt
           echo "${{ env.NIX_PACKAGE_HASH }}" > nix_package_hash.txt
-          echo "${{ env.NITRO_IMAGE_DIGEST }}" > docker_image_digest.txt
           echo "${{ env.CONTAINER_FS_HASH }}" > container_fs_hash.txt
 
           # Upload as artifacts for comparison
@@ -194,7 +173,6 @@ jobs:
           echo "PCR0_RAW=${{ env.PCR0_RAW }}" >> $GITHUB_OUTPUT
           echo "PCR0_KECCAK=${{ env.PCR0_KECCAK }}" >> $GITHUB_OUTPUT
           echo "NIX_PACKAGE_HASH=${{ env.NIX_PACKAGE_HASH }}" >> $GITHUB_OUTPUT
-          echo "DOCKER_IMAGE_DIGEST=${{ env.NITRO_IMAGE_DIGEST }}" >> $GITHUB_OUTPUT
           echo "CONTAINER_FS_HASH=${{ env.CONTAINER_FS_HASH }}" >> $GITHUB_OUTPUT
 
       - name: Upload Build Artifacts
@@ -206,32 +184,35 @@ jobs:
             pcr0_raw.txt
             pcr0_keccak.txt
             nix_package_hash.txt
-            docker_image_digest.txt
             container_fs_hash.txt
 
-      - name: Tag Docker
+      - uses: docker/login-action@v3
+        name: Login to Github Container Repo
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and Push Docker Image
         if: github.event_name != 'pull_request'
         run: |
           echo "Available Docker images:"
           docker images
-          echo "Adding PCR0 label to image..."
-          cat > Dockerfile.labels << EOF
-          FROM enclaver-batch-poster
-          LABEL org.opencontainers.image.description="AWS Nitro batch poster image built with enclave hash: ${{ env.ENCLAVE_HASH }}"
-          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
-          LABEL org.opencontainers.image.revision="${{ github.sha }}"
-          LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
-          LABEL build.github.run_id="${{ github.run_id }}"
-          LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          EOF
 
-          # Build with labels and tag
-          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }} .
-          echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          # Tag the image for registry
+          docker tag nitro-image:latest ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
+          echo "Tagged image for registry"
 
-      - name: Push Docker
-        if: github.event_name != 'pull_request'
-        run: |
+          # Push the image (this is what gets deployed to EC2)
           docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
-          echo "Pushed image with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          echo "Pushed image: ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}"
+
+      - name: Upload EIF Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nitro-eif-${{ env.NITRO_IMAGE_TAG || 'integration' }}
+          path: |
+            *.eif
+          retention-days: 30
