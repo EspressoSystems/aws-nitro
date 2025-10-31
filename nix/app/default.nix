@@ -20,7 +20,6 @@ let
     ++ lib.optionals (pkgs ? nfs-utils) [ pkgs.nfs-utils ];
 
   runtimePath = lib.makeBinPath runtimePackages;
-  runtimePackagePaths = lib.concatStringsSep " " (map (pkg: "${pkg}") runtimePackages);
 
   entrypointScript = pkgs.runCommand "batch-poster-entrypoint" { } ''
     mkdir -p $out
@@ -42,40 +41,24 @@ in pkgs.stdenv.mkDerivation {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/bin $out/libexec
+    mkdir -p $out/bin
 
-    cp ${entrypointScript}/aws-nitro-entrypoint.sh $out/libexec/aws-nitro-entrypoint.sh
-    cp ${entrypointScript}/server.sh $out/libexec/server.sh
-    chmod +x $out/libexec/aws-nitro-entrypoint.sh $out/libexec/server.sh
+    # Copy scripts and substitute paths
+    cp $src/aws-nitro-entrypoint.sh $out/bin/aws-nitro-entrypoint.sh
+    cp $src/server.sh $out/bin/server.sh
+    chmod +x $out/bin/aws-nitro-entrypoint.sh $out/bin/server.sh
 
-    substituteInPlace $out/libexec/aws-nitro-entrypoint.sh \
-      --replace "/usr/local/bin/nitro" "${nitroBinary}/bin/nitro" \
-      --replace "SYSTEM:./server.sh" "SYSTEM:$out/libexec/server.sh"
+    # Replace hardcoded paths with Nix-provided binaries
+    substituteInPlace $out/bin/aws-nitro-entrypoint.sh \
+      --replace "/usr/local/bin/nitro" "${nitroBinary}/bin/nitro"
 
-    mkdir -p $out/libexec/bin $out/libexec/lib
-
-    for pkg in ${runtimePackagePaths}; do
-      if [ -d "$pkg/bin" ] && [ "$(ls -A "$pkg/bin" 2>/dev/null)" != "" ]; then
-        cp -L "$pkg/bin"/* $out/libexec/bin/
-      fi
-      if [ -d "$pkg/lib" ]; then
-        cp -Lr "$pkg/lib/." $out/libexec/lib/
-      fi
-    done
-
-    for binary in $out/libexec/bin/*; do
-      if [ -f "$binary" ]; then
-        ln -sf $binary $out/bin/$(basename "$binary")
-      fi
-    done
-
+    # Create the entrypoint that sets up PATH and runs the script
     cat > $out/bin/entrypoint <<EOF
-#!${pkgs.runtimeShell}
-export PATH=${runtimePath}:$PATH:$out/libexec/bin
-export LD_LIBRARY_PATH=$out/libexec/lib
-export NITRO_BIN="${nitroBinary}/bin/nitro"
-exec $out/libexec/aws-nitro-entrypoint.sh
-EOF
+    #!${pkgs.runtimeShell}
+    export PATH=${runtimePath}:$PATH
+    export NITRO_BIN="${nitroBinary}/bin/nitro"
+    exec $out/bin/aws-nitro-entrypoint.sh
+    EOF
 
     chmod +x $out/bin/entrypoint
 
