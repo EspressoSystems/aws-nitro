@@ -9,6 +9,8 @@ EXPOSE 8548
 # Environment variables
 ENV AZTEC_SRS_PATH=/home/user/kzg10-aztec20-srs-1048584.bin
 ENV HOME=/home/user
+ENV AWS_CONFIG_FILE="/config/aws_config"
+ENV AWS_SHARED_CREDENTIALS_FILE="/config/aws_credentials"
 ARG CONFIG_HASH
 ENV EXPECTED_CONFIG_SHA256=${CONFIG_HASH}
 
