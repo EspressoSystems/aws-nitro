@@ -44,7 +44,6 @@ jobs:
 
       - uses: docker/login-action@v3
         name: Login to Github Container Repo
-        if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -105,11 +104,19 @@ jobs:
           docker images
 
       - name: Tag Docker
-        if: github.event_name != 'pull_request'
         run: |
           echo "Available Docker images:"
           docker images
           echo "Adding PCR0 label to image..."
+          
+          # Determine tag based on event type
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            TAG="${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}-pr${{ github.event.pull_request.number }}"
+          else
+            TAG="${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}"
+          fi
+          echo "IMAGE_TAG=${TAG}" >> ${GITHUB_ENV}
+          
           cat > Dockerfile.labels << EOF
           FROM enclaver-caffnode
           LABEL org.opencontainers.image.description="AWS Nitro CaffNode image built with enclave hash: ${{ env.ENCLAVE_HASH }}"
@@ -122,11 +129,12 @@ jobs:
           EOF
           
           # Build with labels and tag
-          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-caffnode:${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }} .
+          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-caffnode:${TAG} .
           echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          echo "Tagged as: ${TAG}"
 
       - name: Push Docker
-        if: github.event_name != 'pull_request'
         run: |
-          docker push ghcr.io/espressosystems/aws-nitro-caffnode:${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}
+          docker push ghcr.io/espressosystems/aws-nitro-caffnode:${{ env.IMAGE_TAG }}
           echo "Pushed image with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          echo "Pushed as: ${{ env.IMAGE_TAG }}"
