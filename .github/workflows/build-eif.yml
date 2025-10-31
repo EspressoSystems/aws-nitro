@@ -77,7 +77,7 @@ jobs:
             build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
             build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
           push: false
-          tags: nitro-image:latest
+          tags: nitro-image:build
           load: true
 
       - name: Debug Docker Image
@@ -87,19 +87,21 @@ jobs:
           docker images
 
           echo "Nitro image layers:"
-          docker history nitro-image:latest || echo "Could not get history"
+          docker history nitro-image:build || echo "Could not get history"
 
           echo "Nitro image size:"
-          docker images nitro-image:latest --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+          docker images nitro-image:build --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 
-          # Get image digest
-          NITRO_IMAGE_DIGEST=$(docker inspect nitro-image:latest --format='{{index .RepoDigests 0}}' 2>/dev/null || echo "unknown")
+          # Get image digest (may be empty for locally built images)
+          NITRO_IMAGE_DIGEST=$(docker inspect nitro-image:build --format='{{index .RepoDigests 0}}' 2>/dev/null | head -1 || docker inspect nitro-image:build --format='{{.Id}}' 2>/dev/null || echo "unknown")
+          # Clean up any newlines or extra spaces
+          NITRO_IMAGE_DIGEST=$(echo "$NITRO_IMAGE_DIGEST" | tr -d '\n\r' | xargs)
           echo "NITRO_IMAGE_DIGEST=${NITRO_IMAGE_DIGEST}" >> ${GITHUB_ENV}
-          echo "Docker image digest: ${NITRO_IMAGE_DIGEST}"
+          echo "Docker image digest/ID: '${NITRO_IMAGE_DIGEST}'"
 
           # Hash the container filesystem (if possible)
           echo "Attempting to extract container filesystem hash..."
-          CONTAINER_ID=$(docker create nitro-image:latest)
+          CONTAINER_ID=$(docker create nitro-image:build)
           docker export $CONTAINER_ID | sha256sum | cut -d' ' -f1 | tee container_fs_hash.txt
           docker rm $CONTAINER_ID
           CONTAINER_FS_HASH=$(cat container_fs_hash.txt)
