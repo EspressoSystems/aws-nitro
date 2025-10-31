@@ -54,7 +54,7 @@ jobs:
         run: |
           # Create a Docker image from the Nix-built app package
           # The app package should be at result-app/bin/entrypoint
-          docker build \
+          docker buildx build \
             --platform linux/amd64 \
             -f docker/Dockerfile.aws-nitro-poster \
             --build-arg NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }} \
@@ -64,7 +64,8 @@ jobs:
             --labels "build.github.ref=${{ github.ref }}" \
             --labels "build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}" \
             --labels "build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml" \
-            -t nitro-image:latest .
+            -t nitro-image:latest \
+            --load .
 
       - uses: docker/login-action@v3
         name: Login to Github Container Repo
