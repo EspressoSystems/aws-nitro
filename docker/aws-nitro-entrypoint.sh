@@ -4,10 +4,11 @@ set -e
 
 echo "Using config hash: $EXPECTED_CONFIG_SHA256"
 
-ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config      # temporary mounted directory in enclave to read config from parent instance
-PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config # config path on parent directory
-ENCLAVE_CONFIG_TARGET_DIR=/config          # directory to copy config contents to inside enclave
-PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum   # database path on parent directory
+ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config        # temporary mounted directory in enclave to read config from parent instance
+PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config   # config path on parent directory
+ENCLAVE_CONFIG_TARGET_DIR=/config            # directory to copy config contents to inside enclave
+PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum     # database path on parent directory
+ENV_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/.env" # env variables file including ETH wallet private key
 
 echo "Using nitro config: $PARENT_SOURCE_CONFIG_DIR/pcr0/$NITRO_CONFIG"
 
@@ -44,7 +45,7 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-CONFIG_SHA=$(find "$PARENT_SOURCE_CONFIG_DIR/pcr0" -type f -print0 | sort -z | xargs -0 sha256sum | awk '{print $1}' | sha256sum) || {
+CONFIG_SHA=$(find "$ENCLAVE_CONFIG_TARGET_DIR/pcr0" -type f -print0 | sort -z | xargs -0 sha256sum | awk '{print $1}' | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
@@ -66,6 +67,14 @@ if [ "$BYPASS" != true ] && [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
 fi
 
 echo "Config sha256 verified"
+
+# Load environment variables from config if present
+if [ -f "${ENV_FILE}" ]; then
+    echo "Loading environment variables from ${ENV_FILE}"
+    set -a
+    source "${ENV_FILE}"
+    set +a
+fi
 
 echo "Starting vsock server"
 socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
