@@ -3,12 +3,13 @@
 set -e
 
 echo "Using config hash: $EXPECTED_CONFIG_SHA256"
-echo "Using nitro config: $NITRO_CONFIG"
 
 ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config      # temporary mounted directory in enclave to read config from parent instance
 PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config # config path on parent directory
 ENCLAVE_CONFIG_TARGET_DIR=/config          # directory to copy config contents to inside enclave
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum   # database path on parent directory
+
+echo "Using nitro config: $PARENT_SOURCE_CONFIG_DIR/pcr0/$NITRO_CONFIG"
 
 echo "Set memory"
 echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >>/etc/sysctl.conf
@@ -43,12 +44,12 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/$NITRO_CONFIG" | sha256sum | cut -d' ' -f1) || {
+CONFIG_SHA=$(find "$PARENT_SOURCE_CONFIG_DIR/pcr0" -type f -print0 | sort -z | xargs -0 sha256sum | awk '{print $1}' | sha256sum) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
 
-CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/config-verification.json"
+CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/pcr0/config-verification.json"
 BYPASS=false
 if [ -f "${CONFIG_FILE}" ]; then
     if jq -e '.bypass == true' "${CONFIG_FILE}" >/dev/null 2>&1; then
@@ -78,4 +79,4 @@ mount -t nfs4
 
 exec /usr/local/bin/nitro \
     --validation.wasm.enable-wasmroots-check=false \
-    --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/$NITRO_CONFIG"
+    --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/pcr0/$NITRO_CONFIG"

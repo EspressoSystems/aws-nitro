@@ -5,7 +5,7 @@ on:
     inputs:
       config_hash:
         type: string
-        description: 'SHA256 hash for the config'
+        description: 'SHA256 hash for the config directory. Compute using: find <config-dir> -type f -print0 | sort -z | xargs -0 sha256sum | awk ''{print $1}'' | sha256sum'
         required: true
       nitro_node_image_path:
         type: string
