@@ -5,6 +5,15 @@ while read -r message; do
     if [ "$message" = "TERMINATE" ]; then
         echo "Received TERMINATE signal"
         pkill -INT -f "/usr/local/bin/nitro"
+    elif [ "$message" = "TERMINATE2" ]; then
+        echo "Received term signal"
+        pkill -TERM -f "/usr/local/bin/nitro"
+    elif [ "$message" = "TERMINATE3" ]; then
+        echo "Received kill signal"
+        pkill -KILL -f "/usr/local/bin/nitro"
+    elif [ "$message" = "TERMINATE4" ]; then
+        echo "Received TERMINATE4 signal"
+        pkill -f "/usr/local/bin/nitro"
     elif [ "$message" = "TERMINATE_SOCAT" ]; then
         echo "Received TERMINATE_SOCAT signal"
         pkill -KILL -f "socat.*TCP-LISTEN:2049" || echo "Failed to kill socat"
