@@ -11,6 +11,19 @@ To run this workflow you need the latest nitro image tag as well as the sha256 h
 jq -cS . "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
 
+## CI Testing
+
+The GitHub Actions workflow now uses Nix for reproducible builds. To test enclave hash consistency:
+
+1. Push this branch
+2. Go to Actions → "Build Enclaver Docker Image"
+3. Click "Run workflow" twice with the same inputs:
+   - `config_hash`: SHA256 of your poster config JSON
+   - `nitro_node_image_path`: `ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:xxx`
+4. Compare the `ENCLAVE_HASH` outputs - they should be identical
+
+**Note**: PCR0 hash extraction bypasses config verification for testing (uses `{"bypass": true}` in runtime config).
+
 ## Scripts
 To run the scripts you can clone this repository and cd into scripts directory:
 ```shell
