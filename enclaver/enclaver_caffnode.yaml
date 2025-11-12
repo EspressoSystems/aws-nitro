@@ -1,13 +1,13 @@
 version: v1
-name: "caffnode"
-target: "enclaver-caffnode:latest"
+name: 'caffnode'
+target: 'enclaver-caffnode:latest'
 sources:
-  app: "nitro-image:latest"
+  app: 'nitro-image:latest'
 defaults:
-  memory_mb: 10240
+  memory_mb: 24080
   cpu_count: 4
 egress:
   allow:
-    - "*"
-    - "**"
+    - '*'
+    - '**'
     - 0.0.0.0/0
