@@ -5,12 +5,17 @@ on:
     inputs:
       config_hash:
         type: string
-        description: 'SHA256 hash for the config directory. Compute using: find <config-dir> -type f -print0 | sort -z | xargs -0 sha256sum | awk ''{print $1}'' | sha256sum'
+        description: "SHA256 hash for the config directory. Compute using: find <config-dir> -type f -print0 | sort -z | xargs -0 sha256sum | awk '{print $1}' | sha256sum"
         required: true
       nitro_node_image_path:
         type: string
         description: 'Full nitro node image path'
         required: true
+      chain_name:
+        type: string
+        description: 'Name of the chain to include in the tag'
+        required: false
+        default: ''
   push:
     branches:
       - release-tee-caff-node
@@ -32,10 +37,10 @@ jobs:
         run: |
           NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:release-tee-caff-node'}}"
           NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
-          
+
           echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
           echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
-          
+
           echo "Using nitro image: ${NITRO_IMAGE_PATH}"
           echo "Extracted tag for naming: ${NITRO_TAG}"
 
@@ -108,15 +113,22 @@ jobs:
           echo "Available Docker images:"
           docker images
           echo "Adding PCR0 label to image..."
-          
+
           # Determine tag based on event type
+          BASE_TAG="${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}"
+
+          # Add chain name if provided
+          if [ -n "${{ github.event.inputs.chain_name }}" ]; then
+            BASE_TAG="${BASE_TAG}-${{ github.event.inputs.chain_name }}"
+          fi
+
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            TAG="${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}-pr${{ github.event.pull_request.number }}"
+            TAG="${BASE_TAG}-pr${{ github.event.pull_request.number }}"
           else
-            TAG="${{ env.NITRO_IMAGE_TAG || 'release-tee-caff-node' }}"
+            TAG="${BASE_TAG}"
           fi
           echo "IMAGE_TAG=${TAG}" >> ${GITHUB_ENV}
-          
+
           cat > Dockerfile.labels << EOF
           FROM enclaver-caffnode
           LABEL org.opencontainers.image.description="AWS Nitro CaffNode image built with enclave hash: ${{ env.ENCLAVE_HASH }}"
@@ -127,7 +139,7 @@ jobs:
           LABEL build.github.run_id="${{ github.run_id }}"
           LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EOF
-          
+
           # Build with labels and tag
           docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-caffnode:${TAG} .
           echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
