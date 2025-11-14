@@ -1,15 +1,15 @@
 version: v1
-name: "batcher"
-target: "enclaver-batch-poster:latest"
+name: 'batcher'
+target: 'enclaver-batch-poster:latest'
 sources:
-  app: "nitro-image:latest"
+  app: 'nitro-image:latest'
 defaults:
-  memory_mb: 10240
-  cpu_count: 2
+  memory_mb: 20480
+  cpu_count: 16
 egress:
   allow:
-    - "*"
-    - "**"
+    - '*'
+    - '**'
     - 0.0.0.0/0
 ingress:
   - listen_port: 8547
