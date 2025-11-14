@@ -26,9 +26,10 @@ Then you can setup and run the tools needed on the EC2 Instance by running:
 ./setup-ec2-instance.sh
 ```
 
-Finally you can start the enclaver by using the enclaver run command:
+Finally you can start the enclaver by using the docker compose file found in docker folder:
 ```shell
-sudo enclaver run enclaver-batch-poster-<BRANCH_NAME>:latest -p 8547:8547
+docker pull ghcr.io/espressosystems/aws-nitro-poster:<created-docker-tag>
+docker compose up -d
 ```
 
 To safely shut down the batch poster and ensure we write state to the database you need to use the following command:
