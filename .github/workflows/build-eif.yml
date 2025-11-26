@@ -26,6 +26,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Free Disk Space
+        run: |
+          echo "Before cleanup:"
+          df -h /
+          
+          # Remove unnecessary software to free up ~30GB
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker system prune -af
+          
+          echo "After cleanup:"
+          df -h /
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -53,6 +68,11 @@ jobs:
           NITRO_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)
           echo "NITRO_HASH=${NITRO_HASH}" >> $GITHUB_ENV
           echo "Nitro binary SHA256: ${NITRO_HASH}"
+          
+          # Clean up Docker images to save space
+          docker system prune -af
+          echo "Disk after Docker cleanup:"
+          df -h /
 
       - name: Stage Binary for Nix
         run: |
