@@ -2,11 +2,11 @@
   description = "Reproducible AWS Nitro EIF builds using nix-enclaver";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-enclaver = {
       url = "github:joshdoman/nix-enclaver/v0.6.1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      # Don't override nixpkgs - let nix-enclaver use its own for Rust compatibility
     };
   };
 
