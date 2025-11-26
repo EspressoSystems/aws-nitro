@@ -55,9 +55,10 @@ jobs:
 
       - name: Stage Binary for Nix
         run: |
+          # Stage binary for Nix (uses -f because build-outputs/ is gitignored to protect local dev)
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add build-outputs/nitro
+          git add -f build-outputs/nitro
           git commit -m "temp: stage nitro binary for build" || true
 
       - name: Install Nix
