@@ -1,50 +1,54 @@
 # Batch Poster in AWS Nitro
-This tool enables the creation of an `Enclave Image File (EIF)` from a specified Nitro Node image for use in AWS Nitro Enclaves. By providing the SHA256 hash of the configuration and specifying the Nitro image, the tool generates a Dockerfile incorporating the resulting EIF file. This process, facilitated by [Enclaver](https://github.com/enclaver-io/enclaver), will provide network connectivity between our enclave and the outside world. The layout of the repository is as follows:
 
-- `docker`: Contains the Dockerfile that pulls the Nitro Node image and configures a Docker image, which is then converted into an Enclave Image File (EIF).
-- `enclaver`: Configuration for the [Enclaver](https://github.com/enclaver-io/enclaver) tool, generating a Docker image that includes the EIF file.
-- `scripts`: Includes scripts to install, and run the tools needed on the parent EC2 instance, preparing it to run and communicate with the Batch Poster within the enclave.
+This repository builds reproducible Enclave Image Files (EIF) for AWS Nitro Enclaves using [nix-enclaver](https://github.com/joshdoman/nix-enclaver).
 
-## Workflow Prerequisites
-To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config. To get the hash of the batch poster config run:
+## Repository Structure
+
+- `docker/` - Dockerfile and entrypoint scripts for the enclave
+- `enclaver/` - Configuration for Enclaver
+- `nix/` - Nix expressions for reproducible builds
+- `scripts/` - EC2 instance setup scripts
+
+## CI Workflow
+
+The GitHub Actions workflow builds reproducible EIFs with consistent PCR0 hashes.
+
+### Inputs
+
+- `config_hash` - SHA256 hash of the batch poster config
+- `nitro_node_image_path` - Docker image path (e.g., `ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:v3.5.6`)
+
+### Get Config Hash
+
 ```shell
 jq -cS . "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
 
-## CI Testing
+### Run Workflow
 
-The GitHub Actions workflow now uses Nix for reproducible builds. To test enclave hash consistency:
+1. Go to **Actions** → **Build Reproducible EIF**
+2. Click **Run workflow**
+3. Enter the config hash and nitro image path
+4. The workflow outputs:
+   - `PCR0` - The enclave measurement
+   - `Enclave Hash` - Keccak hash of PCR0 for on-chain use
 
-1. Push this branch
-2. Go to Actions → "Build Enclaver Docker Image"
-3. Click "Run workflow" twice with the same inputs:
-   - `config_hash`: SHA256 of your poster config JSON
-   - `nitro_node_image_path`: `ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:xxx`
-4. Compare the `ENCLAVE_HASH` outputs - they should be identical
+## Local Development
 
-**Note**: PCR0 hash extraction bypasses config verification for testing (uses `{"bypass": true}` in runtime config).
-
-## Scripts
-To run the scripts you can clone this repository and cd into scripts directory:
 ```shell
-cd aws-nitro/scripts
+# Enter dev shell
+nix develop
+
+# Build EIF (requires Linux or Linux builder)
+nix build '.#x86_64-eif'
 ```
-Next install the tools needed on the parent instance:
+
+## EC2 Setup
+
 ```shell
+cd scripts
 ./installation-tools.sh
-```
-
-Then you can setup and run the tools needed on the EC2 Instance by running:
-```shell
 ./setup-ec2-instance.sh
-```
-
-Finally you can start the enclaver by using the enclaver run command:
-```shell
-sudo enclaver run enclaver-batch-poster-<BRANCH_NAME>:latest -p 8547:8547
-```
-
-To safely shut down the batch poster and ensure we write state to the database you need to use the following command:
-```shell
+sudo enclaver run enclaver-batch-poster:latest -p 8547:8547
 ./shutdown-batch-poster.sh
 ```

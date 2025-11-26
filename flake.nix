@@ -1,8 +1,8 @@
 {
-  description = "Reproducible AWS Nitro EIF builds for the batch poster using nix-enclaver";
+  description = "Reproducible AWS Nitro EIF builds using nix-enclaver";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
     nix-enclaver = {
       url = "github:joshdoman/nix-enclaver/v0.6.1";
@@ -20,14 +20,23 @@
         pkgs = import nixpkgs { inherit system; };
         lib = pkgs.lib;
         enclaverLib = nix-enclaver.lib.${system};
-        nitroBinary = nix-enclaver.packages.${system}.enclaver;
+
+        # Nitro binary - extracted from Docker image and staged in build-outputs/
+        # The CI workflow extracts this from the specified nitro-node image
+        nitroBinary = pkgs.stdenv.mkDerivation {
+          pname = "nitro-node";
+          version = "extracted";
+          src = ./build-outputs/nitro;
+          dontUnpack = true;
+          installPhase = ''
+            mkdir -p $out/bin
+            cp $src $out/bin/nitro
+            chmod +x $out/bin/nitro
+          '';
+          meta.platforms = [ "x86_64-linux" ];
+        };
 
         appPackage = pkgs.callPackage ./nix/app { inherit nitroBinary; };
-
-        nativeEif = enclaverLib.makeAppEif {
-          appPackage = appPackage;
-          configFile = enclaverYaml;
-        };
 
         x86Eif = enclaverLib.x86_64.makeAppEif {
           appPackage = appPackage;
@@ -41,38 +50,22 @@
 
       in {
         packages = {
-          default = nativeEif.eif;
-          eif = nativeEif.eif;
-          rootfs = nativeEif.rootfs;
+          default = x86Eif.eif;
+          eif = x86Eif.eif;
+          rootfs = x86Eif.rootfs;
           app = appPackage;
           enclaver = nix-enclaver.packages.${system}.enclaver;
           x86_64-eif = x86Eif.eif;
           aarch64-eif = armEif.eif;
         };
 
-        apps = {
-          default = {
-            type = "app";
-            program = "${nix-enclaver.packages.${system}.enclaver}/bin/enclaver";
-          };
-        };
-
         devShells.default = pkgs.mkShell {
           buildInputs = [
             nix-enclaver.packages.${system}.enclaver
             pkgs.jq
-            pkgs.socat
-          ]
-          ++ lib.optionals (pkgs.stdenv.isLinux && pkgs ? nfs-utils) [ pkgs.nfs-utils ]
-          ++ lib.optionals (pkgs.stdenv.isLinux && pkgs ? aws-nitro-enclaves-cli) [ pkgs.aws-nitro-enclaves-cli ]
-          ++ lib.optionals (pkgs ? awscli2) [ pkgs.awscli2 ];
-
-          shellHook = ''
-            echo "Run 'nix build .#eif' to produce the enclave image file."
-          '';
+          ];
         };
       }) // {
         lib = nix-enclaver.lib;
       };
 }
-
