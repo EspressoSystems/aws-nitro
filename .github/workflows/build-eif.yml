@@ -88,30 +88,20 @@ jobs:
       - name: Setup Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Build EIF with nix-enclaver
+      - name: Build EIF
         run: |
-          nix build '.#x86_64-eif' -L 2>&1 | tee build.log || true
-          
-          # Extract PCR0 from build log
-          PCR0=$(grep -oP '"PCR0":\s*"\K[a-f0-9]+' build.log | head -1)
-          echo "PCR0_FROM_BUILD=$PCR0" >> $GITHUB_ENV
+          nix build '.#x86_64-eif' -L || true
           
           EIF=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | head -1)
-          echo "Found: $EIF"
-          ls -la "$EIF"
+          [ -f "$EIF" ] && cp "$EIF" ./enclave.eif
+          [ -d "$EIF" ] && cp "$EIF"/* ./enclave.eif 2>/dev/null
           
-          if [ -f "$EIF" ]; then
-            cp "$EIF" ./enclave.eif
-          elif [ -d "$EIF" ]; then
-            cp "$EIF"/* ./enclave.eif 2>/dev/null || cp -r "$EIF" ./enclave-dir
-          fi
-          
-          ls -la ./enclave*
+          ls -la ./enclave.eif
 
-      - name: Compute Enclave Hash
+      - name: Get PCR0
         run: |
-          PCR0="${{ env.PCR0_FROM_BUILD }}"
-          [ -z "$PCR0" ] && { echo "No PCR0 found"; exit 1; }
+          ENCLAVER=$(nix build '.#enclaver' --print-out-paths --no-link)
+          PCR0=$("${ENCLAVER}/bin/enclaver" describe ./enclave.eif | grep -oP '"PCR0":\s*"\K[a-f0-9]+')
           
           PCR0_KECCAK=$(cast keccak "0x${PCR0}")
           echo "PCR0: $PCR0"
