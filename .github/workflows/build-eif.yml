@@ -107,7 +107,7 @@ jobs:
       - name: Get PCR0
         run: |
           ENCLAVER=$(nix build '.#enclaver' --print-out-paths --no-link)
-          PCR0=$("${ENCLAVER}/bin/enclaver" describe ./enclave.eif | grep -oP '"PCR0":\s*"\K[a-f0-9]+')
+          PCR0=$("${ENCLAVER}/bin/enclaver" describe-eif --eif-path ./enclave.eif | grep -oP '"PCR0":\s*"\K[a-f0-9]+')
           
           PCR0_KECCAK=$(cast keccak "0x${PCR0}")
           echo "PCR0: $PCR0"
