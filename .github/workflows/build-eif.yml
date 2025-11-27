@@ -102,21 +102,22 @@ jobs:
           echo "EIF directory: $EIF_DIR"
           ls -la "$EIF_DIR"/
           
-          cp "$EIF_DIR/batcher.eif" ./enclave.eif
           cp "$EIF_DIR/pcr.json" ./pcr.json
           
           echo "Copied files:"
           ls -la ./enclave.eif ./pcr.json
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       - name: Get PCR0
         run: |
-          echo "=== PCR values from pcr.json ==="
           cat ./pcr.json
           
           PCR0=$(jq -r '.PCR0' ./pcr.json)
-          echo "PCR0: $PCR0"
-          
           PCR0_KECCAK=$(cast keccak "0x${PCR0}")
+          
+          echo "PCR0: $PCR0"
           echo "Enclave Hash: $PCR0_KECCAK"
           
           echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
