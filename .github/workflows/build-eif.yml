@@ -106,15 +106,40 @@ jobs:
 
       - name: Get PCR0
         run: |
+          echo "=== Approach 1: strings on EIF ==="
+          PCR0_STRINGS=$(strings ./enclave.eif | grep -E '^[a-f0-9]{96}$' | head -1 || true)
+          echo "Result: ${PCR0_STRINGS:-not found}"
+          
+          echo ""
+          echo "=== Approach 2: enclaver describe-eif (no args) ==="
           ENCLAVER=$(nix build '.#enclaver' --print-out-paths --no-link)
-          PCR0=$("${ENCLAVER}/bin/enclaver" describe-eif ./enclave.eif | grep -oP '"PCR0":\s*"\K[a-f0-9]+')
+          cd "$(dirname ./enclave.eif)" && "${ENCLAVER}/bin/enclaver" describe-eif 2>&1 | head -20 || true
+          PCR0_ENCLAVER=$("${ENCLAVER}/bin/enclaver" describe-eif 2>&1 | grep -oP '"PCR0":\s*"\K[a-f0-9]+' || true)
+          echo "Result: ${PCR0_ENCLAVER:-not found}"
+          cd -
           
-          PCR0_KECCAK=$(cast keccak "0x${PCR0}")
-          echo "PCR0: $PCR0"
-          echo "Enclave Hash: $PCR0_KECCAK"
+          echo ""
+          echo "=== Approach 3: file info ==="
+          file ./enclave.eif
+          ls -la ./enclave.eif
+          echo "First 200 bytes (hex):"
+          xxd ./enclave.eif | head -20
           
-          echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
-          echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
+          echo ""
+          echo "=== Using first successful result ==="
+          PCR0="${PCR0_STRINGS:-${PCR0_ENCLAVER}}"
+          
+          if [ -n "$PCR0" ]; then
+            PCR0_KECCAK=$(cast keccak "0x${PCR0}")
+            echo "PCR0: $PCR0"
+            echo "Enclave Hash: $PCR0_KECCAK"
+            echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
+            echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
+          else
+            echo "PCR0 not extracted - get it on EC2 with: nitro-cli describe-eif --eif-path <file>"
+            echo "PCR0_RAW=pending" >> $GITHUB_ENV
+            echo "ENCLAVE_HASH=pending" >> $GITHUB_ENV
+          fi
 
       - name: Build Summary
         run: |
