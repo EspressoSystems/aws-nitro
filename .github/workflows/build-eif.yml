@@ -92,17 +92,36 @@ jobs:
         run: |
           nix build '.#x86_64-eif' -L || true
           
+          echo "=== Finding EIF in nix store ==="
+          ls -la /nix/store/*batcher* 2>/dev/null || echo "No batcher found"
+          
           EIF=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | head -1)
           echo "Found: $EIF"
-          ls -la "$EIF"
           
-          if [ -f "$EIF" ]; then
-            cp "$EIF" ./enclave.eif
-          elif [ -d "$EIF" ]; then
-            cp "$EIF"/* ./enclave.eif 2>/dev/null || cp -r "$EIF" ./enclave-dir
+          if [ -z "$EIF" ]; then
+            echo "ERROR: No EIF found in store"
+            exit 1
           fi
           
-          ls -la ./enclave*
+          echo "=== EIF details ==="
+          ls -la "$EIF"
+          file "$EIF" || true
+          
+          echo "=== Copying EIF ==="
+          if [ -f "$EIF" ]; then
+            echo "EIF is a file"
+            cp -v "$EIF" ./enclave.eif
+          elif [ -d "$EIF" ]; then
+            echo "EIF is a directory, contents:"
+            ls -la "$EIF"/
+            cp -v "$EIF"/* ./enclave.eif 2>/dev/null || cp -rv "$EIF" ./enclave-dir
+          else
+            echo "EIF is neither file nor directory, trying direct copy"
+            cp -Lv "$EIF" ./enclave.eif
+          fi
+          
+          echo "=== Result ==="
+          ls -la ./enclave* || echo "No enclave files found!"
 
       - name: Get PCR0
         run: |
