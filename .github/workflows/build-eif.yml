@@ -90,31 +90,28 @@ jobs:
 
       - name: Build EIF with nix-enclaver
         run: |
-          nix build '.#x86_64-eif' --out-link result-eif -L
+          nix build '.#x86_64-eif' -L 2>&1 | tee build.log || true
           
-          EIF_FILE=$(find result-eif -name "*.eif" -type f | head -1)
-          cp "$EIF_FILE" ./enclave.eif
-          echo "EIF built: $(ls -la ./enclave.eif)"
+          # Extract PCR0 from build log
+          PCR0=$(grep -oP '"PCR0":\s*"\K[a-f0-9]+' build.log | head -1)
+          echo "PCR0_FROM_BUILD=$PCR0" >> $GITHUB_ENV
+          
+          # Find EIF in store
+          EIF=$(find /nix/store -maxdepth 1 -name '*batcher-x86_64' -type f 2>/dev/null | head -1)
+          [ -n "$EIF" ] && cp "$EIF" ./enclave.eif
+          
+          ls -la ./enclave.eif
 
-      - name: Extract PCR0
+      - name: Compute Enclave Hash
         run: |
-          ENCLAVER=$(nix build '.#enclaver' --print-out-paths --no-link)
+          PCR0="${{ env.PCR0_FROM_BUILD }}"
+          [ -z "$PCR0" ] && { echo "No PCR0 found"; exit 1; }
           
-          PCR_OUTPUT=$("${ENCLAVER}/bin/enclaver" describe ./enclave.eif 2>&1 || true)
-          echo "$PCR_OUTPUT"
+          PCR0_KECCAK=$(cast keccak "0x${PCR0}")
+          echo "PCR0: $PCR0"
+          echo "Enclave Hash: $PCR0_KECCAK"
           
-          PCR0=$(echo "$PCR_OUTPUT" | grep -oP '"PCR0":\s*"\K[^"]+' || echo "")
-          
-          if [ -z "$PCR0" ]; then
-            echo "Warning: Could not extract PCR0 from enclaver describe"
-            PCR0=$(sha256sum ./enclave.eif | cut -d' ' -f1)
-            echo "Using EIF hash as fallback: ${PCR0}"
-          fi
-          
-          PCR0_HEX="0x${PCR0}"
-          PCR0_KECCAK=$(cast keccak "$PCR0_HEX")
-          
-          echo "PCR0_RAW=${PCR0_HEX}" >> $GITHUB_ENV
+          echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
           echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
 
       - name: Build Summary
