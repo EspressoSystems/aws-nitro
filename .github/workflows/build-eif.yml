@@ -96,11 +96,17 @@ jobs:
           PCR0=$(grep -oP '"PCR0":\s*"\K[a-f0-9]+' build.log | head -1)
           echo "PCR0_FROM_BUILD=$PCR0" >> $GITHUB_ENV
           
-          # Find EIF in store
-          EIF=$(find /nix/store -maxdepth 1 -name '*batcher-x86_64' -type f 2>/dev/null | head -1)
-          [ -n "$EIF" ] && cp "$EIF" ./enclave.eif
+          EIF=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | head -1)
+          echo "Found: $EIF"
+          ls -la "$EIF"
           
-          ls -la ./enclave.eif
+          if [ -f "$EIF" ]; then
+            cp "$EIF" ./enclave.eif
+          elif [ -d "$EIF" ]; then
+            cp "$EIF"/* ./enclave.eif 2>/dev/null || cp -r "$EIF" ./enclave-dir
+          fi
+          
+          ls -la ./enclave*
 
       - name: Compute Enclave Hash
         run: |
