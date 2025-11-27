@@ -12,12 +12,9 @@ on:
         description: 'Full nitro node image path'
         required: true
   push:
-    branches:
-      - main
-      - nix-enclaver
+    branches: [main, nix-enclaver]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 run-name: Build EIF - ${{ github.event.inputs.nitro_node_image_path || 'Default' }}
 
@@ -28,79 +25,49 @@ jobs:
     steps:
       - name: Free Disk Space
         run: |
-          echo "Before cleanup:"
-          df -h /
-          
-          # Remove unnecessary software to free up ~30GB
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo docker system prune -af
-          
-          echo "After cleanup:"
-          df -h /
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set Variables
         run: |
           NITRO_IMAGE="${{ github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration' }}"
-          NITRO_TAG=$(echo "${NITRO_IMAGE}" | sed 's/.*://')
           echo "NITRO_IMAGE=${NITRO_IMAGE}" >> $GITHUB_ENV
-          echo "NITRO_TAG=${NITRO_TAG}" >> $GITHUB_ENV
+          echo "NITRO_TAG=$(echo ${NITRO_IMAGE} | sed 's/.*://')" >> $GITHUB_ENV
 
       - name: Extract Nitro Binary
         run: |
           mkdir -p build-outputs
-          
           docker pull "${{ env.NITRO_IMAGE }}"
-          
-          IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ env.NITRO_IMAGE }}" 2>/dev/null || echo "${{ env.NITRO_IMAGE }}")
-          echo "IMAGE_DIGEST=${IMAGE_DIGEST}" >> $GITHUB_ENV
+          echo "IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.NITRO_IMAGE }})" >> $GITHUB_ENV
           
           CONTAINER_ID=$(docker create "${{ env.NITRO_IMAGE }}" /bin/true)
           docker cp "${CONTAINER_ID}:/usr/local/bin/nitro" "build-outputs/nitro"
           docker rm "${CONTAINER_ID}"
           chmod +x build-outputs/nitro
           
-          NITRO_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)
-          echo "NITRO_HASH=${NITRO_HASH}" >> $GITHUB_ENV
-          echo "Nitro binary SHA256: ${NITRO_HASH}"
-          
-          # Clean up Docker images to save space
+          echo "NITRO_BINARY_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)" >> $GITHUB_ENV
           docker system prune -af
           echo "Disk after Docker cleanup:"
           df -h /
 
       - name: Stage Binary for Nix
         run: |
-          # Stage binary for Nix (uses -f because build-outputs/ is gitignored to protect local dev)
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add -f build-outputs/nitro
-          git commit -m "temp: stage nitro binary for build" || true
+          git commit -m "temp: stage nitro binary" || true
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-
-      - name: Setup Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build EIF
         run: |
           nix build '.#x86_64-eif' -L || true
           
           EIF_DIR=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | grep -v '\.drv' | head -1)
-          
-          if [ -z "$EIF_DIR" ] || [ ! -d "$EIF_DIR" ]; then
-            echo "ERROR: EIF directory not found"
-            exit 1
-          fi
-          
-          echo "EIF directory: $EIF_DIR"
-          ls -la "$EIF_DIR"/
+          [ -z "$EIF_DIR" ] && { echo "ERROR: EIF not found"; exit 1; }
           
           cp "$EIF_DIR/batcher.eif" ./enclave.eif
           cp "$EIF_DIR/pcr.json" ./pcr.json
@@ -118,36 +85,27 @@ jobs:
           PCR0=$(jq -r '.PCR0' ./pcr.json)
           PCR0_KECCAK=$(cast keccak "0x${PCR0}")
           
-          echo "PCR0: $PCR0"
-          echo "Enclave Hash: $PCR0_KECCAK"
-          
           echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
           echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
 
       - name: Build Summary
         run: |
-          echo "=============================================="
-          echo "              BUILD RESULTS                   "
-          echo "=============================================="
           echo "Source Image:    ${{ env.NITRO_IMAGE }}"
           echo "Image Digest:    ${{ env.IMAGE_DIGEST }}"
           echo "Nitro Binary:    ${{ env.NITRO_HASH }}"
           echo "PCR0:            ${{ env.PCR0_RAW }}"
           echo "Enclave Hash:    ${{ env.ENCLAVE_HASH }}"
-          echo "=============================================="
           
           mkdir -p artifacts
-          cat > artifacts/build-info.json << EOF
-          {
-            "nitro_image": "${{ env.NITRO_IMAGE }}",
-            "image_digest": "${{ env.IMAGE_DIGEST }}",
-            "nitro_binary_hash": "${{ env.NITRO_HASH }}",
-            "pcr0": "${{ env.PCR0_RAW }}",
-            "enclave_hash": "${{ env.ENCLAVE_HASH }}",
-            "git_sha": "${{ github.sha }}",
-            "config_hash": "${{ github.event.inputs.config_hash }}"
-          }
-          EOF
+          jq -n \
+            --arg nitro_image "${{ env.NITRO_IMAGE }}" \
+            --arg image_digest "${{ env.IMAGE_DIGEST }}" \
+            --arg nitro_hash "${{ env.NITRO_HASH }}" \
+            --arg pcr0 "${{ env.PCR0_RAW }}" \
+            --arg enclave_hash "${{ env.ENCLAVE_HASH }}" \
+            --arg git_sha "${{ github.sha }}" \
+            '{nitro_image: $nitro_image, image_digest: $image_digest, nitro_binary_hash: $nitro_hash, pcr0: $pcr0, enclave_hash: $enclave_hash, git_sha: $git_sha}' \
+            > artifacts/build-info.json
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -155,6 +113,7 @@ jobs:
           name: eif-${{ env.NITRO_TAG }}-${{ github.run_id }}
           path: |
             ./enclave.eif
+            ./pcr.json
             artifacts/
 
       - uses: docker/login-action@v3
@@ -167,13 +126,12 @@ jobs:
       - name: Push Docker Image
         if: github.event_name != 'pull_request'
         run: |
-          # Build Docker image with the EIF for deployment
           docker build \
             --file ./docker/Dockerfile.aws-nitro-poster \
             --build-arg NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE }} \
             --build-arg CONFIG_HASH=${{ github.event.inputs.config_hash }} \
-            --tag ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }} \
             --label build.pcr0=${{ env.PCR0_RAW }} \
             --label build.enclave_hash=${{ env.ENCLAVE_HASH }} \
+            --tag ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }} \
             .
           docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }}
