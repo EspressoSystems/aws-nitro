@@ -93,10 +93,16 @@ jobs:
           nix build '.#x86_64-eif' -L || true
           
           EIF=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | head -1)
-          [ -f "$EIF" ] && cp "$EIF" ./enclave.eif
-          [ -d "$EIF" ] && cp "$EIF"/* ./enclave.eif 2>/dev/null
+          echo "Found: $EIF"
+          ls -la "$EIF"
           
-          ls -la ./enclave.eif
+          if [ -f "$EIF" ]; then
+            cp "$EIF" ./enclave.eif
+          elif [ -d "$EIF" ]; then
+            cp "$EIF"/* ./enclave.eif 2>/dev/null || cp -r "$EIF" ./enclave-dir
+          fi
+          
+          ls -la ./enclave*
 
       - name: Get PCR0
         run: |
