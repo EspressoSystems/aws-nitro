@@ -92,73 +92,35 @@ jobs:
         run: |
           nix build '.#x86_64-eif' -L || true
           
-          echo "=== Finding EIF in nix store ==="
-          ls -la /nix/store/*batcher* 2>/dev/null || echo "No batcher found"
+          EIF_DIR=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | grep -v '\.drv' | head -1)
           
-          EIF=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | head -1)
-          echo "Found: $EIF"
-          
-          if [ -z "$EIF" ]; then
-            echo "ERROR: No EIF found in store"
+          if [ -z "$EIF_DIR" ] || [ ! -d "$EIF_DIR" ]; then
+            echo "ERROR: EIF directory not found"
             exit 1
           fi
           
-          echo "=== EIF details ==="
-          ls -la "$EIF"
-          file "$EIF" || true
+          echo "EIF directory: $EIF_DIR"
+          ls -la "$EIF_DIR"/
           
-          echo "=== Copying EIF ==="
-          if [ -f "$EIF" ]; then
-            echo "EIF is a file"
-            cp -v "$EIF" ./enclave.eif
-          elif [ -d "$EIF" ]; then
-            echo "EIF is a directory, contents:"
-            ls -la "$EIF"/
-            cp -v "$EIF"/* ./enclave.eif 2>/dev/null || cp -rv "$EIF" ./enclave-dir
-          else
-            echo "EIF is neither file nor directory, trying direct copy"
-            cp -Lv "$EIF" ./enclave.eif
-          fi
+          cp "$EIF_DIR/batcher.eif" ./enclave.eif
+          cp "$EIF_DIR/pcr.json" ./pcr.json
           
-          echo "=== Result ==="
-          ls -la ./enclave* || echo "No enclave files found!"
+          echo "Copied files:"
+          ls -la ./enclave.eif ./pcr.json
 
       - name: Get PCR0
         run: |
-          echo "=== Approach 1: strings on EIF ==="
-          PCR0_STRINGS=$(strings ./enclave.eif | grep -E '^[a-f0-9]{96}$' | head -1 || true)
-          echo "Result: ${PCR0_STRINGS:-not found}"
+          echo "=== PCR values from pcr.json ==="
+          cat ./pcr.json
           
-          echo ""
-          echo "=== Approach 2: enclaver describe-eif (no args) ==="
-          ENCLAVER=$(nix build '.#enclaver' --print-out-paths --no-link)
-          cd "$(dirname ./enclave.eif)" && "${ENCLAVER}/bin/enclaver" describe-eif 2>&1 | head -20 || true
-          PCR0_ENCLAVER=$("${ENCLAVER}/bin/enclaver" describe-eif 2>&1 | grep -oP '"PCR0":\s*"\K[a-f0-9]+' || true)
-          echo "Result: ${PCR0_ENCLAVER:-not found}"
-          cd -
+          PCR0=$(jq -r '.PCR0' ./pcr.json)
+          echo "PCR0: $PCR0"
           
-          echo ""
-          echo "=== Approach 3: file info ==="
-          file ./enclave.eif
-          ls -la ./enclave.eif
-          echo "First 200 bytes (hex):"
-          xxd ./enclave.eif | head -20
+          PCR0_KECCAK=$(cast keccak "0x${PCR0}")
+          echo "Enclave Hash: $PCR0_KECCAK"
           
-          echo ""
-          echo "=== Using first successful result ==="
-          PCR0="${PCR0_STRINGS:-${PCR0_ENCLAVER}}"
-          
-          if [ -n "$PCR0" ]; then
-            PCR0_KECCAK=$(cast keccak "0x${PCR0}")
-            echo "PCR0: $PCR0"
-            echo "Enclave Hash: $PCR0_KECCAK"
-            echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
-            echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
-          else
-            echo "PCR0 not extracted - get it on EC2 with: nitro-cli describe-eif --eif-path <file>"
-            echo "PCR0_RAW=pending" >> $GITHUB_ENV
-            echo "ENCLAVE_HASH=pending" >> $GITHUB_ENV
-          fi
+          echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
+          echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
 
       - name: Build Summary
         run: |
