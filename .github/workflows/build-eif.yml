@@ -102,6 +102,7 @@ jobs:
           echo "EIF directory: $EIF_DIR"
           ls -la "$EIF_DIR"/
           
+          cp "$EIF_DIR/batcher.eif" ./enclave.eif
           cp "$EIF_DIR/pcr.json" ./pcr.json
           
           echo "Copied files:"
