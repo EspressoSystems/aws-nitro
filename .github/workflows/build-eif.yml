@@ -173,5 +173,7 @@ jobs:
             --build-arg NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE }} \
             --build-arg CONFIG_HASH=${{ github.event.inputs.config_hash }} \
             --tag ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }} \
+            --label build.pcr0=${{ env.PCR0_RAW }} \
+            --label build.enclave_hash=${{ env.ENCLAVE_HASH }} \
             .
           docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }}
