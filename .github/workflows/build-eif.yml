@@ -62,8 +62,9 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Build EIF
+      - name: Build EIF and Enclaver
         run: |
+          # Build the EIF
           nix build '.#x86_64-eif' -L || true
           
           EIF_DIR=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | grep -v '\.drv' | head -1)
@@ -72,8 +73,13 @@ jobs:
           cp "$EIF_DIR/batcher.eif" ./enclave.eif
           cp "$EIF_DIR/pcr.json" ./pcr.json
           
-          echo "Copied files:"
-          ls -la ./enclave.eif ./pcr.json
+          # Build the enclaver binary (includes outer proxy for network)
+          nix build '.#enclaver' -L
+          cp ./result/bin/enclaver ./enclaver
+          chmod +x ./enclaver
+          
+          echo "Built files:"
+          ls -la ./enclave.eif ./pcr.json ./enclaver
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -92,7 +98,7 @@ jobs:
         run: |
           echo "Source Image:    ${{ env.NITRO_IMAGE }}"
           echo "Image Digest:    ${{ env.IMAGE_DIGEST }}"
-          echo "Nitro Binary:    ${{ env.NITRO_HASH }}"
+          echo "Nitro Binary:    ${{ env.NITRO_BINARY_HASH }}"
           echo "PCR0:            ${{ env.PCR0_RAW }}"
           echo "Enclave Hash:    ${{ env.ENCLAVE_HASH }}"
           
@@ -100,7 +106,7 @@ jobs:
           jq -n \
             --arg nitro_image "${{ env.NITRO_IMAGE }}" \
             --arg image_digest "${{ env.IMAGE_DIGEST }}" \
-            --arg nitro_hash "${{ env.NITRO_HASH }}" \
+            --arg nitro_hash "${{ env.NITRO_BINARY_HASH }}" \
             --arg pcr0 "${{ env.PCR0_RAW }}" \
             --arg enclave_hash "${{ env.ENCLAVE_HASH }}" \
             --arg git_sha "${{ github.sha }}" \
@@ -114,24 +120,5 @@ jobs:
           path: |
             ./enclave.eif
             ./pcr.json
+            ./enclaver
             artifacts/
-
-      - uses: docker/login-action@v3
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push Docker Image
-        if: github.event_name != 'pull_request'
-        run: |
-          docker build \
-            --file ./docker/Dockerfile.aws-nitro-poster \
-            --build-arg NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE }} \
-            --build-arg CONFIG_HASH=${{ github.event.inputs.config_hash }} \
-            --label build.pcr0=${{ env.PCR0_RAW }} \
-            --label build.enclave_hash=${{ env.ENCLAVE_HASH }} \
-            --tag ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }} \
-            .
-          docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_TAG }}
