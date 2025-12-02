@@ -4,7 +4,7 @@ target: 'enclaver-caffnode:latest'
 sources:
   app: 'nitro-image:latest'
 defaults:
-  memory_mb: 24080
+  memory_mb: 10240
   cpu_count: 4
 egress:
   allow:
