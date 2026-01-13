@@ -6,9 +6,9 @@ This tool enables the creation of an `Enclave Image File (EIF)` from a specified
 - `scripts`: Includes scripts to install, and run the tools needed on the parent EC2 instance, preparing it to run and communicate with the Batch Poster within the enclave.
 
 ## Workflow Prerequisites
-To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config. To get the hash of the batch poster config run:
+To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config. We only get the hash over the chain config from the `poster_config.json` to do this run:
 ```shell
-jq -cS . "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
+jq -cS {chain} "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
 
 ## Scripts
