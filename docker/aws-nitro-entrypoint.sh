@@ -42,21 +42,12 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256sum | cut -d' ' -f1) || {
+CONFIG_SHA=$(jq -cS {chain} "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
 
-CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/config-verification.json"
-BYPASS=false
-if [ -f "${CONFIG_FILE}" ]; then
-    if jq -e '.bypass == true' "${CONFIG_FILE}" >/dev/null 2>&1; then
-        echo "WARNING: Bypass flag is set to true in config-verification.json"
-        BYPASS=true
-    fi
-fi
-
-if [ "$BYPASS" != true ] && [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
+if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     echo "ERROR: Config sha256 mismatch"
     echo "Expected: $EXPECTED_CONFIG_SHA256"
     echo "Actual:   $CONFIG_SHA"
