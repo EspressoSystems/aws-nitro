@@ -74,9 +74,15 @@ mount -t nfs4 -o rsize=16384,wsize=16384 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/h
 echo "Checking Mounts:"
 mount -t nfs4
 
-# TODO: All configurable values to be passed in command line
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
   --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" \
-  --node.batch-poster.parent-chain-wallet.private-key="${PRIVATE_KEY}" \ 
+  --node.batch-poster.parent-chain-wallet.private-key="${PRIVATE_KEY}" \
+  --espresso.batch-poster.hotshot-first-posting-block="${HOTSHOT_FIRST_POSTING_BLOCK}" \
+  --espresso.batch-poster.txns-monitoring-interval="${TXN_MONITOR_INTERVAL}" \
+  --espresso.batch-poster.txns-sending-interval="${TXN_SENDING_INTERVAL}" \
+  --espresso.streamer.hotshot-block="${HOTSHOT_BLOCK}" \
+  --espresso.streamer.address-monitor-start-l1="${ADDR_MONITOR_START}" \
+  --espresso.streamer.address-monitor-step="${ADDR_MONITOR_STEP}" \
+  --espresso.streamer.txns-polling-interval="${POLLING_INTERVAL}" \
   | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
