@@ -9,6 +9,11 @@ PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config # config path on parent directory
 ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside enclave
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
 
+echo "Disabling ipv6"
+echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.conf
+echo 'net.ipv6.conf.default.disable_ipv6 = 1' >> /etc/sysctl.conf
+echo 'net.ipv6.conf.lo.disable_ipv6 = 1' >> /etc/sysctl.conf
+
 echo "Set memory"
 echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >> /etc/sysctl.conf
 echo 'net.ipv4.tcp_wmem = 4096 87380 16777216' >> /etc/sysctl.conf
@@ -75,7 +80,7 @@ mount -t nfs4 -o rsize=16384,wsize=16384 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/h
 echo "Checking Mounts:"
 mount -t nfs4
 
-
+export GODEBUG=netdns=go+v4only
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
   --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" \
