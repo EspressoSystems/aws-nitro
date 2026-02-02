@@ -4,10 +4,11 @@ set -e
 
 echo "Using config hash: $EXPECTED_CONFIG_SHA256"
 
-ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config # temporary mounted directory in enclave to read config from parent instance
-PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config # config path on parent directory
-ENCLAVE_CONFIG_TARGET_DIR=/config # directory to copy config contents to inside enclave
-PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum # database path on parent directory
+ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config        # temporary mounted directory in enclave to read config from parent instance
+PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config   # config path on parent directory
+ENCLAVE_CONFIG_TARGET_DIR=/config            # directory to copy config contents to inside enclave
+PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum     # database path on parent directory
+ENV_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/.env" # env variables file including ETH wallet private key
 
 echo "Set memory"
 echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >> /etc/sysctl.conf
@@ -47,20 +48,18 @@ CONFIG_SHA=$(jq -cS . "$ENCLAVE_CONFIG_TARGET_DIR/poster_config.json" | sha256su
     exit 1
 }
 
-CONFIG_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/config-verification.json"
-BYPASS=false
-if [ -f "${CONFIG_FILE}" ]; then
-    if jq -e '.bypass == true' "${CONFIG_FILE}" >/dev/null 2>&1; then
-        echo "WARNING: Bypass flag is set to true in config-verification.json"
-        BYPASS=true
-    fi
-fi
-
-if [ "$BYPASS" != true ] && [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
+if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     echo "ERROR: Config sha256 mismatch"
     echo "Expected: $EXPECTED_CONFIG_SHA256"
     echo "Actual:   $CONFIG_SHA"
     exit 1
+fi
+
+if [ -f "${ENV_FILE}" ]; then
+    echo "Loading environment variables from ${ENV_FILE}"
+    set -a
+    source "${ENV_FILE}"
+    set +a
 fi
 
 echo "Config sha256 verified"
@@ -75,8 +74,14 @@ mount -t nfs4 -o rsize=16384,wsize=16384 "127.0.0.1:${PARENT_SOURCE_DB_DIR}" "/h
 echo "Checking Mounts:"
 mount -t nfs4
 
-
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
   --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" \
+  --node.batch-poster.parent-chain-wallet.private-key="${PRIVATE_KEY}" \
+  --node.parent-chain.connection.url="${RPC_URL}" \
+  --espresso.batch-poster.txns-monitoring-interval="${TXN_MONITOR_INTERVAL}" \
+  --espresso.batch-poster.txns-resubmission-interval="${TXN_RESUBMIT_INTERVAL}" \
+  --espresso.streamer.hotshot-block="${HOTSHOT_BLOCK}" \
+  --espresso.streamer.address-monitor-step="${ADDR_MONITOR_STEP}" \
+  --espresso.streamer.txns-polling-interval="${POLLING_INTERVAL}" \
   | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
