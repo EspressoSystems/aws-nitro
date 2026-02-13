@@ -8,7 +8,19 @@ This tool enables the creation of an `Enclave Image File (EIF)` from a specified
 ## Workflow Prerequisites
 To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config. To get the hash of the batch poster config run:
 ```shell
-jq -cS . "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
+jq -cS 'del(
+      .node."batch-poster"."parent-chain-wallet"."private-key",
+      .node."batch-poster"."poll-interval",
+      .node."batch-poster"."max-delay",
+      .node."batch-poster"."max-empty-batch-delay",
+      .node.espresso."batch-poster"."txns-monitoring-interval",
+      .node.espresso."batch-poster"."txns-resubmission-interval",
+      .node.espresso.streamer."hotshot-block",
+      .node.espresso.streamer."address-monitor-start-l1",
+      .node.espresso.streamer."address-monitor-step",
+      .node.espresso.streamer."txns-polling-interval",
+      ."parent-chain".connection.url
+    )' "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
 
 ## Scripts
