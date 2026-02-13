@@ -52,12 +52,12 @@ jobs:
       #     echo "Disk after Docker cleanup:"
       #     df -h /
 
-      - name: Stage Binary for Nix
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add -f build-outputs/nitro
-          git commit -m "temp: stage nitro binary" || true
+      # - name: Stage Binary for Nix
+      #   run: |
+      #     git config user.name "github-actions"
+      #     git config user.email "github-actions@github.com"
+      #     git add -f build-outputs/nitro
+      #     git commit -m "temp: stage nitro binary" || true
 
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
