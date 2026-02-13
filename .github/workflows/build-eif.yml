@@ -36,21 +36,21 @@ jobs:
           echo "NITRO_IMAGE=${NITRO_IMAGE}" >> $GITHUB_ENV
           echo "NITRO_TAG=$(echo ${NITRO_IMAGE} | sed 's/.*://')" >> $GITHUB_ENV
 
-      - name: Extract Nitro Binary
-        run: |
-          mkdir -p build-outputs
-          docker pull "${{ env.NITRO_IMAGE }}"
-          echo "IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.NITRO_IMAGE }})" >> $GITHUB_ENV
+      # - name: Extract Nitro Binary
+      #   run: |
+      #     mkdir -p build-outputs
+      #     docker pull "${{ env.NITRO_IMAGE }}"
+      #     echo "IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.NITRO_IMAGE }})" >> $GITHUB_ENV
           
-          CONTAINER_ID=$(docker create "${{ env.NITRO_IMAGE }}" /bin/true)
-          docker cp "${CONTAINER_ID}:/usr/local/bin/nitro" "build-outputs/nitro"
-          docker rm "${CONTAINER_ID}"
-          chmod +x build-outputs/nitro
+      #     CONTAINER_ID=$(docker create "${{ env.NITRO_IMAGE }}" /bin/true)
+      #     docker cp "${CONTAINER_ID}:/usr/local/bin/nitro" "build-outputs/nitro"
+      #     docker rm "${CONTAINER_ID}"
+      #     chmod +x build-outputs/nitro
           
-          echo "NITRO_BINARY_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)" >> $GITHUB_ENV
-          docker system prune -af
-          echo "Disk after Docker cleanup:"
-          df -h /
+      #     echo "NITRO_BINARY_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)" >> $GITHUB_ENV
+      #     docker system prune -af
+      #     echo "Disk after Docker cleanup:"
+      #     df -h /
 
       - name: Stage Binary for Nix
         run: |
@@ -74,7 +74,7 @@ jobs:
           cp "$EIF_DIR/pcr.json" ./pcr.json
           
           # Build the enclaver binary (includes outer proxy for network)
-          nix build '.#enclaver' -L
+          nix build '.#default' -L --impure
           cp ./result/bin/enclaver ./enclaver
           chmod +x ./enclaver
           

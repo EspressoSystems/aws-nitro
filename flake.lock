@@ -85,16 +85,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1759887994,
-        "narHash": "sha256-g0cNWtjV8djOC6FfFYNV1WYnNxKJCotidvqTNi5GosI=",
-        "owner": "joshdoman",
+        "lastModified": 1771018062,
+        "narHash": "sha256-d76qZpWCDQAK2JZfi/CIK7FzvmDP1H5Lglt7ulcCP8c=",
+        "owner": "EspressoSystems",
         "repo": "nix-enclaver",
-        "rev": "abe3b6ace922685a20f754549f774cae70cf32e7",
+        "rev": "d4bb3f01a979082fa88bd101e2431b187e1a8176",
         "type": "github"
       },
       "original": {
-        "owner": "joshdoman",
-        "ref": "v0.6.1",
+        "owner": "EspressoSystems",
+        "ref": "v0.1.0",
         "repo": "nix-enclaver",
         "type": "github"
       }
