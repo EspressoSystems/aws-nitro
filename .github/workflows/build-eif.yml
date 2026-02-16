@@ -1,4 +1,4 @@
-name: Build Enclaver Docker Image
+name: Build Reproducible EIF
 
 on:
   workflow_dispatch:
@@ -12,121 +12,90 @@ on:
         description: 'Full nitro node image path'
         required: true
   push:
-    branches:
-      - main
+    branches: [main, nix-enclaver]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
-run-name: Enclaver Docker Image - ${{ github.event.inputs.nitro_node_image_path || 'Simple Build' }}
+run-name: Build EIF - ${{ github.event.inputs.nitro_node_image_path || 'Default' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set Image Variables
+      - name: Free Disk Space
         run: |
-          NITRO_IMAGE_PATH="${{github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration'}}"
-          NITRO_TAG=$(echo "${NITRO_IMAGE_PATH}" | sed 's/.*://')
-          
-          echo "NITRO_IMAGE_PATH=${NITRO_IMAGE_PATH}" >> ${GITHUB_ENV}
-          echo "NITRO_IMAGE_TAG=${NITRO_TAG}" >> ${GITHUB_ENV}
-          
-          echo "Using nitro image: ${NITRO_IMAGE_PATH}"
-          echo "Extracted tag for naming: ${NITRO_TAG}"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker system prune -af
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
-        name: Login to Github Container Repo
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./docker/Dockerfile.aws-nitro-poster
-          build-args: |
-            NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }}
-            CONFIG_HASH=${{ github.event.inputs.config_hash}}
-          labels: |
-            build.github.run_number=${{ github.run_number }}
-            build.github.actor=${{ github.actor }}
-            build.github.ref=${{ github.ref }}
-            build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
-            build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
-
-          push: false
-          tags: nitro-image:latest
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run Enclaver installation
+      - name: Set Variables
         run: |
-          echo "Downloading and installing Enclaver..."
-          ARCH=$(uname -m)
-          LATEST_RELEASE=$(curl -s https://api.github.com/repositories/516492075/releases/latest)
-          DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r ".assets[] | select(.name | test(\"^enclaver-linux-$ARCH.*tar.gz$\")) | .browser_download_url")
+          NITRO_IMAGE="${{ github.event.inputs.nitro_node_image_path || 'ghcr.io/espressosystems/nitro-espresso-integration/nitro-node:integration' }}"
+          echo "NITRO_IMAGE=${NITRO_IMAGE}" >> $GITHUB_ENV
+          echo "NITRO_TAG=$(echo ${NITRO_IMAGE} | sed 's/.*://')" >> $GITHUB_ENV
 
-          if [ -z "$DOWNLOAD_URL" ]; then
-            echo "Could not find Enclaver download URL"
-            exit 1
-          fi
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
-          curl -L "$DOWNLOAD_URL" -o enclaver.tar.gz
-          tar xzf enclaver.tar.gz
-          sudo install enclaver-*/enclaver /usr/local/bin/
-          rm -rf enclaver.tar.gz enclaver-*
-          enclaver --version
+      - name: Build EIF and Enclaver                                                                                                                                                                                                                         
+        run: |                                                                                                                                                                                                                                               
+          # Build the EIF
+          nix build '.#x86_64-eif' -L --out-link ./eif-result
+          
+          # Copy files from the result
+          cp ./eif-result/batcher.eif ./enclave.eif
+          cp ./eif-result/pcr.json ./pcr.json
+          
+          # Build the enclaver binary
+          nix build '.#enclaver' -L --out-link ./enclaver-result
+          cp ./enclaver-result/bin/enclaver ./enclaver
+          chmod +x ./enclaver
+          echo "Built files:"
+          ls -lh ./enclave.eif ./pcr.json ./enclaver
+          
+          echo "PCR Measurements:"
+          cat ./pcr.json | jq . 
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
-      - name: Run Enclaver build
+      - name: Get PCR0
         run: |
-          build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
-          echo "Build complete! Output: $build_output"
-          pcr0_raw="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"  
-          pcr0_keccak=$(cast keccak $pcr0_raw)
-          echo "PCR0 keccak hash: $pcr0_keccak"
-          echo "ENCLAVE_HASH=${pcr0_keccak}" >> ${GITHUB_ENV}
-          docker images
-
-      - name: Tag Docker
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "Available Docker images:"
-          docker images
-          echo "Adding PCR0 label to image..."
-          cat > Dockerfile.labels << EOF
-          FROM enclaver-batch-poster
-          LABEL org.opencontainers.image.description="AWS Nitro batch poster image built with enclave hash: ${{ env.ENCLAVE_HASH }}"
-          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
-          LABEL org.opencontainers.image.revision="${{ github.sha }}"
-          LABEL org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
-          LABEL build.github.run_id="${{ github.run_id }}"
-          LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          EOF
+          cat ./pcr.json
           
-          # Build with labels and tag
-          docker build -f Dockerfile.labels -t ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }} .
-          echo "Tagged with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          PCR0=$(jq -r '.PCR0' ./pcr.json)
+          PCR0_KECCAK=$(cast keccak "0x${PCR0}")
+          
+          echo "PCR0_RAW=0x${PCR0}" >> $GITHUB_ENV
+          echo "ENCLAVE_HASH=${PCR0_KECCAK}" >> $GITHUB_ENV
 
-      - name: Push Docker
-        if: github.event_name != 'pull_request'
+      - name: Build Summary
         run: |
-          docker push ghcr.io/espressosystems/aws-nitro-poster:${{ env.NITRO_IMAGE_TAG || 'integration' }}
-          echo "Pushed image with PCR0 HASH: ${{ env.ENCLAVE_HASH }}"
+          echo "Source Image:    ${{ env.NITRO_IMAGE }}"
+          echo "Image Digest:    ${{ env.IMAGE_DIGEST }}"
+          echo "Nitro Binary:    ${{ env.NITRO_BINARY_HASH }}"
+          echo "PCR0:            ${{ env.PCR0_RAW }}"
+          echo "Enclave Hash:    ${{ env.ENCLAVE_HASH }}"
+          
+          mkdir -p artifacts
+          jq -n \
+            --arg nitro_image "${{ env.NITRO_IMAGE }}" \
+            --arg image_digest "${{ env.IMAGE_DIGEST }}" \
+            --arg nitro_hash "${{ env.NITRO_BINARY_HASH }}" \
+            --arg pcr0 "${{ env.PCR0_RAW }}" \
+            --arg enclave_hash "${{ env.ENCLAVE_HASH }}" \
+            --arg git_sha "${{ github.sha }}" \
+            '{nitro_image: $nitro_image, image_digest: $image_digest, nitro_binary_hash: $nitro_hash, pcr0: $pcr0, enclave_hash: $enclave_hash, git_sha: $git_sha}' \
+            > artifacts/build-info.json
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eif-${{ env.NITRO_TAG }}-${{ github.run_id }}
+          path: |
+            ./enclave.eif
+            ./pcr.json
+            ./enclaver
+            artifacts/

@@ -1,6 +1,8 @@
 ARG NITRO_IMAGE_PATH
 FROM ${NITRO_IMAGE_PATH}
-RUN curl -L -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
+# Download SRS file with deterministic timestamp
+RUN curl -L --time-cond kzg10-aztec20-srs-1048584.bin -z kzg10-aztec20-srs-1048584.bin -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin && \
+    touch -t 197001010000 kzg10-aztec20-srs-1048584.bin
 USER root
 
 EXPOSE 8547
@@ -19,12 +21,12 @@ RUN chmod +x /aws-nitro-entrypoint.sh
 
 # Install required packages
 RUN apt-get update && \
-    apt-get install -y \
-    socat \
+    apt-get install -y --no-install-recommends --no-upgrade \
+    iproute2 \
+    net-tools \
     nfs-common \
     procps \
-    net-tools \
-    iproute2 && \
+    socat && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
