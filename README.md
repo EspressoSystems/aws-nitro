@@ -41,7 +41,6 @@ nix develop
 
 # Build EIF (requires Linux or Linux builder)
 nix build '.#x86_64-eif'
-```
 
 ## EC2 Setup
 

@@ -3,15 +3,13 @@
 MESSAGE="TERMINATE"
 PORT=8005
 
-# Get the latest CID from journal logs
-CID=$(sudo journalctl -u socat.service -n 50 --no-pager | \
-      grep -oP 'accepting connection from AF=40 cid:\K\d+' | \
-      tail -n 1 | \
-      tr -d '[:space:]')
+# Get the CID from active VSOCK connections on port 8004
+CID=$(ss -A vsock | grep ESTAB | grep ':8004' | awk '{print $6}' | cut -d':' -f1 | head -n 1)
 
 # Validate CID
 if [[ ! "$CID" =~ ^[0-9]+$ ]]; then
-    echo "Error: No valid CID found in socat.service logs"
+    echo "Error: No valid CID found in active VSOCK connections"
+    echo "Debug: Run 'ss -A vsock' to check connections"
     exit 1
 fi
 
@@ -20,6 +18,8 @@ echo "Attempting VSOCK connection to CID $CID, port $PORT..."
 # Run socat and capture output and exit status
 OUTPUT=$(echo "$MESSAGE" | socat - VSOCK-CONNECT:$CID:$PORT 2>&1)
 EXIT_STATUS=$?
+
+echo "$OUTPUT"
 
 # Handle connection results
 if echo "$OUTPUT" | grep -q "Connection timed out"; then
