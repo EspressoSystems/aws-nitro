@@ -36,50 +36,27 @@ jobs:
           echo "NITRO_IMAGE=${NITRO_IMAGE}" >> $GITHUB_ENV
           echo "NITRO_TAG=$(echo ${NITRO_IMAGE} | sed 's/.*://')" >> $GITHUB_ENV
 
-      # - name: Extract Nitro Binary
-      #   run: |
-      #     mkdir -p build-outputs
-      #     docker pull "${{ env.NITRO_IMAGE }}"
-      #     echo "IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.NITRO_IMAGE }})" >> $GITHUB_ENV
-          
-      #     CONTAINER_ID=$(docker create "${{ env.NITRO_IMAGE }}" /bin/true)
-      #     docker cp "${CONTAINER_ID}:/usr/local/bin/nitro" "build-outputs/nitro"
-      #     docker rm "${CONTAINER_ID}"
-      #     chmod +x build-outputs/nitro
-          
-      #     echo "NITRO_BINARY_HASH=$(sha256sum build-outputs/nitro | cut -d' ' -f1)" >> $GITHUB_ENV
-      #     docker system prune -af
-      #     echo "Disk after Docker cleanup:"
-      #     df -h /
-
-      # - name: Stage Binary for Nix
-      #   run: |
-      #     git config user.name "github-actions"
-      #     git config user.email "github-actions@github.com"
-      #     git add -f build-outputs/nitro
-      #     git commit -m "temp: stage nitro binary" || true
-
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Build EIF and Enclaver
-        run: |
+      - name: Build EIF and Enclaver                                                                                                                                                                                                                         
+        run: |                                                                                                                                                                                                                                               
           # Build the EIF
-          nix build '.#x86_64-eif' -L || true
+          nix build '.#x86_64-eif' -L --out-link ./eif-result
           
-          EIF_DIR=$(ls -d /nix/store/*batcher-x86_64 2>/dev/null | grep -v '\.drv' | head -1)
-          [ -z "$EIF_DIR" ] && { echo "ERROR: EIF not found"; exit 1; }
+          # Copy files from the result
+          cp ./eif-result/batcher.eif ./enclave.eif
+          cp ./eif-result/pcr.json ./pcr.json
           
-          cp "$EIF_DIR/batcher.eif" ./enclave.eif
-          cp "$EIF_DIR/pcr.json" ./pcr.json
-          
-          # Build the enclaver binary (includes outer proxy for network)
-          nix build '.#default' -L --impure
-          cp ./result/bin/enclaver ./enclaver
+          # Build the enclaver binary
+          nix build '.#enclaver' -L --out-link ./enclaver-result
+          cp ./enclaver-result/bin/enclaver ./enclaver
           chmod +x ./enclaver
-          
           echo "Built files:"
-          ls -la ./enclave.eif ./pcr.json ./enclaver
+          ls -lh ./enclave.eif ./pcr.json ./enclaver
+          
+          echo "PCR Measurements:"
+          cat ./pcr.json | jq . 
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
