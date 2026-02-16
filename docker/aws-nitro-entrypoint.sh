@@ -43,16 +43,12 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
+aws secretsmanager get-secret-value   --secret-id arn:aws:secretsmanager:us-east-1:027574771971:secret:test/url-BNcxeQ   --region us-east-1   --query SecretString   --output text | jq -r '.url'
+
 CONFIG_SHA=$(jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
-      .node."batch-poster"."poll-interval",
-      .node."batch-poster"."max-delay",
-      .node."batch-poster"."max-empty-batch-delay",
       .node.espresso."batch-poster"."txns-monitoring-interval",
       .node.espresso."batch-poster"."txns-resubmission-interval",
-      .node.espresso.streamer."hotshot-block",
-      .node.espresso.streamer."address-monitor-start-l1",
-      .node.espresso.streamer."address-monitor-step",
       .node.espresso.streamer."txns-polling-interval",
       ."parent-chain".connection.url
     )' "poster_config.json" | sha256sum | cut -d' ' -f1) || {
@@ -93,11 +89,5 @@ exec /usr/local/bin/nitro \
   --parent-chain.connection.url="${RPC_URL}" \
   --node.espresso.batch-poster.txns-monitoring-interval="${TXN_MONITOR_INTERVAL}" \
   --node.espresso.batch-poster.txns-resubmission-interval="${TXN_RESUBMIT_INTERVAL}" \
-  --node.espresso.streamer.hotshot-block="${HOTSHOT_BLOCK}" \
-  --node.address-monitor-start-l1="${ADDR_MONITOR_START}" \
-  --node.espresso.streamer.address-monitor-step="${ADDR_MONITOR_STEP}" \
   --node.espresso.streamer.txns-polling-interval="${STREAMER_POLLING_INTERVAL}" \
-  --node.batch-poster.poll-interval="${BATCHER_POLLING_INTERVAL}" \
-  --node.batch-poster.max-delay="${BATCHER_MAX_DELAY}" \
-  --node.batch-poster.max-empty-batch-delay="${BATCHER_MAX_EMPTY_DELAY}" \
   | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
