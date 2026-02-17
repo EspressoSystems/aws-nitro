@@ -53,7 +53,7 @@ SECRET=$(aws secretsmanager get-secret-value \
 }
 
 SECRET_JSON=$(echo "$SECRET" | jq -r '.parameters')
-if [[ "$SECRET_JSONL" == "null" || -z "$SECRET_JSON" ]]; then
+if [[ "$SECRET_JSON" == "null" || -z "$SECRET_JSON" ]]; then
   echo "ERROR: no parameters found in retrieved secret" >&2
   exit 1
 fi
