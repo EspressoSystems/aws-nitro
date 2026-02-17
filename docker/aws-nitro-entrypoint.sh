@@ -43,7 +43,7 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-SECRET_JSON=$(aws secretsmanager get-secret-value \
+SECRET=$(aws secretsmanager get-secret-value \
   --secret-id "$AWS_SECRET_ID" \
   --region "$AWS_REGION" \
   --query SecretString \
@@ -51,6 +51,12 @@ SECRET_JSON=$(aws secretsmanager get-secret-value \
   echo "ERROR: Failed to retrieve config from Secrets Manager"
   exit 1
 }
+
+SECRET_JSON=$(echo "$SECRET" | jq -r '.parameters')
+if [[ "$SECRET_JSONL" == "null" || -z "$SECRET_JSON" ]]; then
+  echo "ERROR: no parameters found in retrieved secret" >&2
+  exit 1
+fi
 
 RPC_URL=$(echo "$SECRET_JSON" | jq -r '."rpc-url"')
 if [[ "$RPC_URL" == "null" || -z "$RPC_URL" ]]; then
