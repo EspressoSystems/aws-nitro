@@ -54,7 +54,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/Dockerfile.aws-nitro-poster
+          file: ./nitro/docker/Dockerfile.aws-nitro-poster
           build-args: |
             NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
@@ -96,7 +96,7 @@ jobs:
 
       - name: Run Enclaver build
         run: |
-          build_output=$(sudo enclaver build --file ./enclaver/enclaver.yaml)
+          build_output=$(sudo enclaver build --file ./nitro/enclaver/enclaver.yaml)
           echo "Build complete! Output: $build_output"
           pcr0_raw="0x$(echo "$build_output" | grep -oP '"PCR0": "\K[^"]+')"  
           pcr0_keccak=$(cast keccak $pcr0_raw)
