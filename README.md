@@ -39,15 +39,17 @@ Then you can setup and run the tools needed on the EC2 Instance by running:
 ./setup-ec2-instance.sh
 ```
 
-Finally you can start the enclaver by using the docker compose file found in the nitro/docker folder:
-```shell
-cd ../docker
-docker pull ghcr.io/espressosystems/aws-nitro-poster:<created-docker-tag>
-docker compose up -d
+Finally, you can start the enclaver. First, edit `../docker/docker-compose.yml` to uncomment the `image` line and provide your image tag:
+```yaml
+image: ghcr.io/espressosystems/aws-nitro-poster:<created-docker-tag>
 ```
 
-To safely shut down the batch poster and ensure we write state to the database you need to use the following command:
+Then, from the `nitro/scripts` directory, run:
 ```shell
-cd ../scripts
+(cd ../docker && docker pull ghcr.io/espressosystems/aws-nitro-poster:<created-docker-tag> && docker compose up -d)
+```
+
+To safely shut down the batch poster and ensure we write state to the database, run the following command from the `nitro/scripts` directory:
+```shell
 ./shutdown-batch-poster.sh
 ```
