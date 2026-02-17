@@ -43,7 +43,8 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-aws secretsmanager get-secret-value   --secret-id arn:aws:secretsmanager:us-east-1:027574771971:secret:test/url-BNcxeQ   --region us-east-1   --query SecretString   --output text | jq -r '.url'
+# TODO: other configurable values
+RPC_URL=aws secretsmanager get-secret-value   --secret-id arn:aws:secretsmanager:us-east-1:027574771971:secret:test/url-BNcxeQ   --region us-east-1   --query SecretString   --output text | jq -r '.url'
 
 CONFIG_SHA=$(jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
@@ -51,7 +52,7 @@ CONFIG_SHA=$(jq -cS 'del(
       .node.espresso."batch-poster"."txns-resubmission-interval",
       .node.espresso.streamer."txns-polling-interval",
       ."parent-chain".connection.url
-    )' "poster_config.json" | sha256sum | cut -d' ' -f1) || {
+    )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
@@ -63,12 +64,12 @@ if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     exit 1
 fi
 
-if [ -f "${ENV_FILE}" ]; then
-    echo "Loading environment variables from ${ENV_FILE}"
-    set -a
-    source "${ENV_FILE}"
-    set +a
-fi
+# if [ -f "${ENV_FILE}" ]; then
+#     echo "Loading environment variables from ${ENV_FILE}"
+#     set -a
+#     source "${ENV_FILE}"
+#     set +a
+# fi
 
 echo "Config sha256 verified"
 
