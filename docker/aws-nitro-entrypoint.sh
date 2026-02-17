@@ -70,7 +70,7 @@ if [[ "$PRIVATE_KEY" == "null" || -z "$PRIVATE_KEY" ]]; then
 fi
 # Set these to default if not present
 TXN_MONITOR_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-monitor-interval" // "125ms"')
-TXN_RESUBMIT_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-resubmit-interval"] // "125ms"')
+TXN_RESUBMIT_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-resubmit-interval" // "125ms"')
 STREAMER_POLLING_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."streamer-polling-interval" //"10s"')
 
 CONFIG_SHA=$(jq -cS 'del(
