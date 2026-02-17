@@ -1,6 +1,11 @@
+# Builder stage to download SRS file
+FROM alpine:latest AS builder
+RUN apk add --no-cache curl
+RUN curl -L -o /kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
+
+# Main image
 ARG NITRO_IMAGE_PATH
 FROM ${NITRO_IMAGE_PATH}
-RUN curl -L -o kzg10-aztec20-srs-1048584.bin https://github.com/EspressoSystems/ark-srs/releases/download/v0.2.0/kzg10-aztec20-srs-1048584.bin
 USER root
 
 EXPOSE 8547
@@ -54,6 +59,9 @@ RUN mkdir -p \
     /mnt/config \
     /config \
     "${HOME}"
+
+# Copy SRS file from builder stage
+COPY --from=builder --chown=user:user /kzg10-aztec20-srs-1048584.bin /home/user/kzg10-aztec20-srs-1048584.bin
 
 USER user
 
