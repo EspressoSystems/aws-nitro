@@ -11,6 +11,14 @@ on:
         type: string
         description: 'Full nitro node image path'
         required: true
+      aws_region:
+        type: string
+        description: 'AWS region for Secrets Manager'
+        required: true
+      aws_secret_id:
+        type: string
+        description: 'AWS Secrets Manager secret ARN'
+        required: true
   push:
     branches:
       - main
@@ -58,6 +66,8 @@ jobs:
           build-args: |
             NITRO_IMAGE_PATH=${{ env.NITRO_IMAGE_PATH }}
             CONFIG_HASH=${{ github.event.inputs.config_hash}}
+            AWS_REGION=${{ github.event.inputs.aws_region }}
+            AWS_SECRET_ID=${{ github.event.inputs.aws_secret_id }}
           labels: |
             build.github.run_number=${{ github.run_number }}
             build.github.actor=${{ github.actor }}

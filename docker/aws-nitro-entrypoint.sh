@@ -43,8 +43,29 @@ fi
 echo "Unmounting config"
 umount "${ENCLAVE_CONFIG_SOURCE_DIR}"
 
-# TODO: other configurable values
-RPC_URL=aws secretsmanager get-secret-value   --secret-id arn:aws:secretsmanager:us-east-1:027574771971:secret:test/url-BNcxeQ   --region us-east-1   --query SecretString   --output text | jq -r '.url'
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "$AWS_SECRET_ID" \
+  --region "$AWS_REGION" \
+  --query SecretString \
+  --output text) || {
+  echo "ERROR: Failed to retrieve config from Secrets Manager"
+  exit 1
+}
+
+RPC_URL=$(echo "$SECRET_JSON" | jq -r '."rpc-url"')
+if [[ "$RPC_URL" == "null" || -z "$RPC_URL" ]]; then
+  echo "ERROR: 'rpc-url' is missing or null in config" >&2
+  exit 1
+fi
+PRIVATE_KEY=$(echo "$SECRET_JSON" | jq -r '."private-key"')
+if [[ "$PRIVATE_KEY" == "null" || -z "$PRIVATE_KEY" ]]; then
+  echo "ERROR: 'rpc-url' is missing or null in config" >&2
+  exit 1
+fi
+# Set these to default if not present
+TXN_MONITOR_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-monitor-interval" // "125ms"')
+TXN_RESUBMIT_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-resubmit-interval"] // "125ms"')
+STREAMER_POLLING_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."streamer-polling-interval" //"10s"')
 
 CONFIG_SHA=$(jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
@@ -63,13 +84,6 @@ if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     echo "Actual:   $CONFIG_SHA"
     exit 1
 fi
-
-# if [ -f "${ENV_FILE}" ]; then
-#     echo "Loading environment variables from ${ENV_FILE}"
-#     set -a
-#     source "${ENV_FILE}"
-#     set +a
-# fi
 
 echo "Config sha256 verified"
 
