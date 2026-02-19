@@ -81,10 +81,6 @@ if [[ "$DA_ENABLED" == "true" ]]; then
     exit 1
   fi
 fi
-DA_ARGS=()
-[[ -n "$DA_REST_AGGREGATOR" ]] && DA_ARGS+=(--node.data-availability.rest-aggregator="$DA_REST_AGGREGATOR")
-[[ -n "$DA_RPC_AGGREGATOR" ]] && DA_ARGS+=(--node.data-availability.rpc-aggregator="$DA_RPC_AGGREGATOR")
-
 CONFIG_SHA=$(jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
       .node.espresso."batch-poster"."txns-monitoring-interval",
@@ -107,6 +103,14 @@ fi
 
 echo "Config sha256 verified"
 
+if [[ -n "$DA_REST_AGGREGATOR" && -n "$DA_RPC_AGGREGATOR" ]]; then
+  echo "Injecting data-availability aggregators into config"
+  jq --argjson rest "$DA_REST_AGGREGATOR" --argjson rpc "$DA_RPC_AGGREGATOR" \
+    '.node["data-availability"]["rest-aggregator"] = $rest | .node["data-availability"]["rpc-aggregator"] = $rpc' \
+    "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" > /tmp/poster_config_patched.json
+  mv /tmp/poster_config_patched.json "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json"
+fi
+
 echo "Starting vsock server"
 socat VSOCK-LISTEN:8005,fork,keepalive SYSTEM:./server.sh &
 sleep 5
@@ -125,5 +129,4 @@ exec /usr/local/bin/nitro \
   --node.espresso.batch-poster.txns-monitoring-interval="${TXN_MONITOR_INTERVAL}" \
   --node.espresso.batch-poster.txns-resubmission-interval="${TXN_RESUBMIT_INTERVAL}" \
   --node.espresso.streamer.txns-polling-interval="${STREAMER_POLLING_INTERVAL}" \
-  "${DA_ARGS[@]}" \
   | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
