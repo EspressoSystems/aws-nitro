@@ -65,20 +65,34 @@ if [[ "$RPC_URL" == "null" || -z "$RPC_URL" ]]; then
 fi
 PRIVATE_KEY=$(echo "$SECRET_JSON" | jq -r '."private-key"')
 if [[ "$PRIVATE_KEY" == "null" || -z "$PRIVATE_KEY" ]]; then
-  echo "ERROR: 'rpc-url' is missing or null in config" >&2
+  echo "ERROR: 'private-key' is missing or null in config" >&2
   exit 1
 fi
 # Set these to default if not present
 TXN_MONITOR_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-monitor-interval" // "125ms"')
 TXN_RESUBMIT_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."txn-resubmit-interval" // "125ms"')
 STREAMER_POLLING_INTERVAL=$(echo "$SECRET_JSON" | jq -r '."streamer-polling-interval" //"10s"')
+DA_REST_AGGREGATOR=$(echo "$SECRET_JSON" | jq -c '."da-rest-aggregator" // empty')
+DA_RPC_AGGREGATOR=$(echo "$SECRET_JSON" | jq -c '."da-rpc-aggregator" // empty')
+DA_ENABLED=$(jq -r '.node."data-availability".enable // false' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json")
+if [[ "$DA_ENABLED" == "true" ]]; then
+  if [[ -z "$DA_REST_AGGREGATOR" || -z "$DA_RPC_AGGREGATOR" ]]; then
+    echo "ERROR: data-availability is enabled but da-rest-aggregator or da-rpc-aggregator are missing from secret config" >&2
+    exit 1
+  fi
+fi
+DA_ARGS=()
+[[ -n "$DA_REST_AGGREGATOR" ]] && DA_ARGS+=(--node.data-availability.rest-aggregator="$DA_REST_AGGREGATOR")
+[[ -n "$DA_RPC_AGGREGATOR" ]] && DA_ARGS+=(--node.data-availability.rpc-aggregator="$DA_RPC_AGGREGATOR")
 
 CONFIG_SHA=$(jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
       .node.espresso."batch-poster"."txns-monitoring-interval",
       .node.espresso."batch-poster"."txns-resubmission-interval",
       .node.espresso.streamer."txns-polling-interval",
-      ."parent-chain".connection.url
+      ."parent-chain".connection.url,
+      .node."data-availability"."rest-aggregator",
+      .node."data-availability"."rpc-aggregator"
     )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
@@ -111,4 +125,5 @@ exec /usr/local/bin/nitro \
   --node.espresso.batch-poster.txns-monitoring-interval="${TXN_MONITOR_INTERVAL}" \
   --node.espresso.batch-poster.txns-resubmission-interval="${TXN_RESUBMIT_INTERVAL}" \
   --node.espresso.streamer.txns-polling-interval="${STREAMER_POLLING_INTERVAL}" \
+  "${DA_ARGS[@]}" \
   | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
