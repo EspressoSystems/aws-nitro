@@ -8,7 +8,6 @@ ENCLAVE_CONFIG_SOURCE_DIR=/mnt/config        # temporary mounted directory in en
 PARENT_SOURCE_CONFIG_DIR=/opt/nitro/config   # config path on parent directory
 ENCLAVE_CONFIG_TARGET_DIR=/config            # directory to copy config contents to inside enclave
 PARENT_SOURCE_DB_DIR=/opt/nitro/arbitrum     # database path on parent directory
-ENV_FILE="${ENCLAVE_CONFIG_TARGET_DIR}/.env" # env variables file including ETH wallet private key
 
 echo "Set memory"
 echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >> /etc/sysctl.conf
@@ -106,8 +105,8 @@ echo "Config sha256 verified"
 
 if [[ "$DA_ENABLED" == "true" ]]; then
   echo "Injecting data-availability aggregators from aws secrets into config"
-  jq --argjson rest "$DA_REST_AGGREGATOR" --argjson rpc "$DA_RPC_AGGREGATOR" \
-    '.node["data-availability"]["rest-aggregator"] = $rest | .node["data-availability"]["rpc-aggregator"] = $rpc' \
+  jq --argjson rest "$DA_REST_AGGREGATOR" --argjson rpc "$DA_RPC_AGGREGATOR" --arg rpc_url "$RPC_URL" \
+    '.node["data-availability"]["rest-aggregator"] = $rest | .node["data-availability"]["rpc-aggregator"] = $rpc | .node["data-availability"]["parent-chain-node-url"] = $rpc_url' \
     "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" > /tmp/poster_config_patched.json
   mv /tmp/poster_config_patched.json "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json"
 
