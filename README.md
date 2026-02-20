@@ -23,16 +23,12 @@ To run this workflow you need the latest nitro image tag as well as the sha256 h
 ```shell
 jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
-      .node."batch-poster"."poll-interval",
-      .node."batch-poster"."max-delay",
-      .node."batch-poster"."max-empty-batch-delay",
       .node.espresso."batch-poster"."txns-monitoring-interval",
       .node.espresso."batch-poster"."txns-resubmission-interval",
-      .node.espresso.streamer."hotshot-block",
-      .node.espresso.streamer."address-monitor-start-l1",
-      .node.espresso.streamer."address-monitor-step",
       .node.espresso.streamer."txns-polling-interval",
-      ."parent-chain".connection.url
+      ."parent-chain".connection.url,
+      .node."data-availability"."rest-aggregator",
+      .node."data-availability"."rpc-aggregator"
     )' "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
 
