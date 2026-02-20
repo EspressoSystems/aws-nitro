@@ -58,6 +58,7 @@ if [[ "$SECRET_JSON" == "null" || -z "$SECRET_JSON" ]]; then
   exit 1
 fi
 
+echo "Succesfully retrieved secrets from aws"
 RPC_URL=$(echo "$SECRET_JSON" | jq -r '."rpc-url"')
 if [[ "$RPC_URL" == "null" || -z "$RPC_URL" ]]; then
   echo "ERROR: 'rpc-url' is missing or null in config" >&2
@@ -87,13 +88,13 @@ CONFIG_SHA=$(jq -cS 'del(
       .node.espresso."batch-poster"."txns-resubmission-interval",
       .node.espresso.streamer."txns-polling-interval",
       ."parent-chain".connection.url,
-      .node."data-availability"."rest-aggregator",
-      .node."data-availability"."rpc-aggregator"
+      .node."data-availability"
     )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1) || {
     echo "ERROR: Failed to calculate config sha256"
     exit 1
 }
 
+echo "Comparing config sha without da"
 if [ "$CONFIG_SHA" != "$EXPECTED_CONFIG_SHA256" ]; then
     echo "ERROR: Config sha256 mismatch"
     echo "Expected: $EXPECTED_CONFIG_SHA256"
@@ -103,12 +104,31 @@ fi
 
 echo "Config sha256 verified"
 
-if [[ -n "$DA_REST_AGGREGATOR" && -n "$DA_RPC_AGGREGATOR" ]]; then
-  echo "Injecting data-availability aggregators into config"
+if [[ "$DA_ENABLED" == "true" ]]; then
+  echo "Injecting data-availability aggregators from aws secrets into config"
   jq --argjson rest "$DA_REST_AGGREGATOR" --argjson rpc "$DA_RPC_AGGREGATOR" \
     '.node["data-availability"]["rest-aggregator"] = $rest | .node["data-availability"]["rpc-aggregator"] = $rpc' \
     "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" > /tmp/poster_config_patched.json
   mv /tmp/poster_config_patched.json "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json"
+
+  CONFIG_SHA_DA=$(jq -cS 'del(
+        .node."batch-poster"."parent-chain-wallet"."private-key",
+        .node.espresso."batch-poster"."txns-monitoring-interval",
+        .node.espresso."batch-poster"."txns-resubmission-interval",
+        .node.espresso.streamer."txns-polling-interval",
+        ."parent-chain".connection.url
+      )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1) || {
+      echo "ERROR: Failed to calculate DA config sha256"
+      exit 1
+  }
+  echo "Comparing config sha with da"
+  echo "Expected config sha with da: $EXPECTED_CONFIG_SHA256_DA"
+  if [ "$CONFIG_SHA_DA" != "$EXPECTED_CONFIG_SHA256_DA" ]; then
+    echo "ERROR: Config sha256 mismatch"
+    echo "Expected: $EXPECTED_CONFIG_SHA256_DA"
+    echo "Actual:   $CONFIG_SHA_DA"
+    exit 1
+  fi
 fi
 
 echo "Starting vsock server"

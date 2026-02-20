@@ -19,7 +19,7 @@ The Nitro stack enables the creation of an `Enclave Image File (EIF)` from a spe
 - `nitro/scripts`: Includes scripts to install, and run the tools needed on the parent EC2 instance, preparing it to run and communicate with the Batch Poster within the enclave.
 
 ## Workflow Prerequisites
-To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config. To get the hash of the batch poster config run:
+To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config and if DA is enabled, you will also need the sha256 hash with DA. To get the hash of the batch poster config run:
 ```shell
 jq -cS 'del(
       .node."batch-poster"."parent-chain-wallet"."private-key",
@@ -27,10 +27,23 @@ jq -cS 'del(
       .node.espresso."batch-poster"."txns-resubmission-interval",
       .node.espresso.streamer."txns-polling-interval",
       ."parent-chain".connection.url,
-      .node."data-availability"."rest-aggregator",
-      .node."data-availability"."rpc-aggregator"
-    )' "path/to/poster_config.json" | sha256sum | cut -d' ' -f1
+      .node."data-availability"
+    )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1
 ```
+
+To get the hash for config with DA run:
+```shell
+```shell
+jq -cS 'del(
+        .node."batch-poster"."parent-chain-wallet"."private-key",
+        .node.espresso."batch-poster"."txns-monitoring-interval",
+        .node.espresso."batch-poster"."txns-resubmission-interval",
+        .node.espresso.streamer."txns-polling-interval",
+        ."parent-chain".connection.url
+      )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1
+```
+
+You will need to input both into the workflow for building image. However, if no DA is enabled you can input any hash.
 
 ### Nitro Scripts
 To run the scripts you can clone this repository and cd into the Nitro scripts directory:
