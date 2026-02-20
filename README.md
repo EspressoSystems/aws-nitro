@@ -33,7 +33,6 @@ jq -cS 'del(
 
 To get the hash for config with DA run:
 ```shell
-```shell
 jq -cS 'del(
         .node."batch-poster"."parent-chain-wallet"."private-key",
         .node.espresso."batch-poster"."txns-monitoring-interval",
