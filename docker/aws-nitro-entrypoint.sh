@@ -79,4 +79,4 @@ mount -t nfs4
 exec /usr/local/bin/nitro \
   --validation.wasm.enable-wasmroots-check=false \
   --conf.file "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" \
-  | while IFS= read -r line; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
+  2>&1 | while IFS= read -r line || [[ -n "$line" ]]; do [ ${#line} -gt 4096 ] && echo "${line:0:4076}... [line truncated]" || echo "$line"; done
