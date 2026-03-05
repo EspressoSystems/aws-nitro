@@ -115,7 +115,8 @@ if [[ "$DA_ENABLED" == "true" ]]; then
         .node.espresso."batch-poster"."txns-monitoring-interval",
         .node.espresso."batch-poster"."txns-resubmission-interval",
         .node.espresso.streamer."txns-polling-interval",
-        ."parent-chain".connection.url
+        ."parent-chain".connection.url,
+        .node."data-availability"."parent-chain-node-url"
       )' "${ENCLAVE_CONFIG_TARGET_DIR}/poster_config.json" | sha256sum | cut -d' ' -f1) || {
       echo "ERROR: Failed to calculate DA config sha256"
       exit 1
