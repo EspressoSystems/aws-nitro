@@ -1,21 +1,28 @@
 ##############################################################################
 # build-eif.yml
 #
-# Builds a static AWS Nitro EIF image from a published op-batcher-enclave-app
-# image and pushes op-batcher-eif with the SAME tag — so you can trace any
-# running EIF straight back to the source commit in espresso-integration.
+# Builds a self-contained AWS Nitro EIF runner image from a published
+# op-batcher-enclave-app image and pushes a single tag to the registry:
 #
-#   espresso-integration CI  →  op-batcher-enclave-app:TAG
-#                               op-batcher-tee:TAG  (enclave-tools extracted from here)
+#   op-batcher-eif:TAG  — self-contained runner (what Terraform/ECS deploys).
+#                         Built by wrapping op-batcher-enclave-app with
+#                         enclaver (EIF + enclaver-run proxy), then layering
+#                         run-eif.sh on top as ENTRYPOINT.
+#                         Pull it, set the batcher env vars, and run.
 #
-#   this workflow             →  op-batcher-eif:TAG  (same TAG)
+# PCR traceability:
+#   PCR0/1/2 are computed from the EIF content (which comes from
+#   op-batcher-enclave-app).  Adding run-eif.sh as an outer layer does NOT
+#   affect PCR0 — PCR0 is sealed at enclaver build time.
 #
-# The workflow resolves the tag to its sha256 digest after pull so the EIF
-# is always built from the exact same bytes. PCR0/1/2 measurements and the
-# pinned digest are stored as labels on the output image.
+# Traceability:
+#   espresso-integration CI  →  op-batcher-enclave-app:TAG  (app, goes in EIF)
+#                               op-batcher-tee:TAG           (run-eif.sh source)
 #
-# enclave-tools is extracted directly from op-batcher-tee.
-# enclaver is installed on the runner at the version pinned in the Dockerfile.
+#   this workflow             →  op-batcher-eif:TAG          (self-contained runner)
+#
+# The workflow resolves input tags to sha256 digests immediately after pull so
+# re-running produces identical EIF bytes and identical PCR measurements.
 #
 # Copy this file to .github/workflows/build-eif.yml in the infra repo.
 ##############################################################################
@@ -41,7 +48,7 @@ on:
 env:
   REGISTRY: ghcr.io
   SOURCE_REPO: ghcr.io/espressosystems/optimism-espresso-integration
-  EIF_IMAGE_NAME: ghcr.io/espressosystems/op-batcher-eif
+  EIF_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/op-batcher-eif
 
 jobs:
   build-eif:
@@ -60,8 +67,6 @@ jobs:
 
       - name: Resolve tag and pull images
         run: |
-          # If a branch prefix is provided, construct the full tag from it.
-          # Otherwise use the tag input as-is (already the full branch-sha form).
           if [ -n "${{ github.event.inputs.branch }}" ]; then
             RESOLVED_TAG="${{ github.event.inputs.branch }}-${{ github.event.inputs.tag }}"
           else
@@ -76,8 +81,7 @@ jobs:
           docker pull "${APP_IMAGE}"
           docker pull "${TEE_IMAGE}"
 
-          # Resolve to tag@sha256:<digest> so re-running this workflow always
-          # builds from the exact same image bytes, even if the tag is later updated.
+          # Resolve to sha256 digests so re-running always builds from exact same bytes.
           APP_IMAGE_PINNED="${APP_IMAGE}@$(docker inspect --format='{{index .RepoDigests 0}}' "${APP_IMAGE}" | cut -d@ -f2)"
           TEE_IMAGE_PINNED="${TEE_IMAGE}@$(docker inspect --format='{{index .RepoDigests 0}}' "${TEE_IMAGE}" | cut -d@ -f2)"
 
@@ -86,9 +90,8 @@ jobs:
           echo "APP_IMAGE_PINNED=${APP_IMAGE_PINNED}" >> $GITHUB_ENV
           echo "TEE_IMAGE_PINNED=${TEE_IMAGE_PINNED}" >> $GITHUB_ENV
 
-          echo "App image:         ${APP_IMAGE}"
           echo "App image (pinned): ${APP_IMAGE_PINNED}"
-          echo "TEE image:         ${TEE_IMAGE}"
+          echo "TEE image (pinned): ${TEE_IMAGE_PINNED}"
 
       - name: Extract enclave-tools and install enclaver
         run: |
@@ -103,18 +106,11 @@ jobs:
           curl -fsSL https://github.com/enclaver-io/enclaver/releases/download/v0.5.0/enclaver-linux-x86_64-v0.5.0.tar.gz \
             | tar xz --strip-components=1 -C /usr/local/bin enclaver-linux-x86_64-v0.5.0/enclaver
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
       - name: Build EIF and capture measurements
         run: |
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
           echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
 
-          # Run enclave-tools directly on the host — no Docker-in-Docker.
-          # enclaver writes the EIF Docker image to the local daemon.
           BUILD_OUTPUT=$(enclave-tools build-eif \
             --app-image "${{ env.APP_IMAGE_PINNED }}" \
             --eif-tag "${EIF_TAG}")
@@ -129,26 +125,38 @@ jobs:
             exit 1
           fi
 
-          # Compute keccak hash of PCR0 (same as Arb workflow)
-          pcr0_keccak=$(cast keccak "0x${PCR0}")
-          echo "ENCLAVE_HASH=${pcr0_keccak}" >> $GITHUB_ENV
-
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
           echo "PCR1=${PCR1}" >> $GITHUB_ENV
           echo "PCR2=${PCR2}" >> $GITHUB_ENV
           echo "PCR0: ${PCR0}"
           echo "PCR1: ${PCR1}"
           echo "PCR2: ${PCR2}"
-          echo "PCR0 keccak hash: ${pcr0_keccak}"
 
-      - name: Add OCI labels to EIF image
+      - name: Layer run-eif.sh and add OCI labels
         run: |
-          docker build -t "${{ env.EIF_TAG }}" - <<EOF
+          # Extract run-eif.sh from op-batcher-tee (versions stay in sync with source tag).
+          id=$(docker create "${{ env.TEE_IMAGE_PINNED }}")
+          docker cp $id:/source/espresso/docker/op-batcher-tee/run-eif.sh ./run-eif.sh
+          docker rm $id
+          chmod +x ./run-eif.sh
+
+          # Build into a temp directory so COPY has a local context.
+          BUILDCTX=$(mktemp -d)
+          cp run-eif.sh "$BUILDCTX/"
+
+          cat > "$BUILDCTX/Dockerfile" <<DOCKERFILE
+          FROM busybox:musl AS busybox
+
           FROM ${{ env.EIF_TAG }}
+          # The enclaver outer image is built from scratch — no shell or tools.
+          # Copy a static busybox and install its applets so run-eif.sh can use
+          # sh, nc, timeout, and kill.
+          COPY --from=busybox /bin/busybox /bin/busybox
+          RUN ["/bin/busybox", "--install", "-s", "/bin"]
+          COPY run-eif.sh /run-eif.sh
           LABEL enclave.pcr0="${{ env.PCR0 }}"
           LABEL enclave.pcr1="${{ env.PCR1 }}"
           LABEL enclave.pcr2="${{ env.PCR2 }}"
-          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
           LABEL enclave.tag="${{ env.RESOLVED_TAG }}"
           LABEL enclave.app-image="${{ env.APP_IMAGE }}"
           LABEL enclave.app-image-pinned="${{ env.APP_IMAGE_PINNED }}"
@@ -156,9 +164,13 @@ jobs:
           LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
           LABEL org.opencontainers.image.revision="${{ github.sha }}"
           LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          EOF
+          ENTRYPOINT ["/run-eif.sh"]
+          DOCKERFILE
 
-      - name: Push EIF image
+          docker build -t "${{ env.EIF_TAG }}" "$BUILDCTX"
+          rm -rf "$BUILDCTX"
+
+      - name: Push runner image
         run: docker push "${{ env.EIF_TAG }}"
 
       - name: Summary
@@ -168,10 +180,13 @@ jobs:
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Tag** | \`${{ env.RESOLVED_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **EIF image** | \`${{ env.EIF_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Runner image** | \`${{ env.EIF_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR1** | \`${{ env.PCR1 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR2** | \`${{ env.PCR2 }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Enclave hash (keccak)** | \`${{ env.ENCLAVE_HASH }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pull and run \`${{ env.EIF_TAG }}\` — EIF is baked in." >> $GITHUB_STEP_SUMMARY
+          echo "Set batcher env vars: \`L1_RPC_URL\`, \`L2_RPC_URL\`, \`ROLLUP_RPC_URL\`, \`ESPRESSO_URL1\`, \`OPERATOR_PRIVATE_KEY\`, \`ESPRESSO_ATTESTATION_SERVICE_URL\`, \`EIGENDA_PROXY_URL\`." >> $GITHUB_STEP_SUMMARY
