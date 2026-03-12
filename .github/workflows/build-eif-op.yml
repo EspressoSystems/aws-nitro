@@ -61,12 +61,21 @@ jobs:
 
       - name: Resolve tag and pull images
         run: |
+          set -euo pipefail
+
           # If a branch prefix is provided, construct the full tag from it.
           # Otherwise use the tag input as-is (already the full branch-sha form).
-          if [ -n "${{ github.event.inputs.branch }}" ]; then
-            RESOLVED_TAG="${{ github.event.inputs.branch }}-${{ github.event.inputs.tag }}"
+          # On push/PR triggers (no inputs), fall back to a default tag.
+          INPUT_TAG="${{ github.event.inputs.tag }}"
+          INPUT_BRANCH="${{ github.event.inputs.branch }}"
+
+          if [ -z "${INPUT_TAG}" ]; then
+            RESOLVED_TAG="celo-integration-rebase-14.2"
+            echo "No tag input provided, using default: ${RESOLVED_TAG}"
+          elif [ -n "${INPUT_BRANCH}" ]; then
+            RESOLVED_TAG="${INPUT_BRANCH}-${INPUT_TAG}"
           else
-            RESOLVED_TAG="${{ github.event.inputs.tag }}"
+            RESOLVED_TAG="${INPUT_TAG}"
           fi
           echo "RESOLVED_TAG=${RESOLVED_TAG}" >> $GITHUB_ENV
           echo "Using tag: ${RESOLVED_TAG}"
@@ -93,6 +102,7 @@ jobs:
 
       - name: Build EIF and capture PCR0
         run: |
+          set -euo pipefail
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
           echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
 
@@ -117,6 +127,7 @@ jobs:
 
       - name: Add OCI labels to EIF image
         run: |
+          set -euo pipefail
           docker build -t "${{ env.EIF_TAG }}" - <<EOF
           FROM ${{ env.EIF_TAG }}
           LABEL enclave.pcr0="${{ env.PCR0 }}"
