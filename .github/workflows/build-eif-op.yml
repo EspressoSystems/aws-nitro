@@ -48,7 +48,7 @@ on:
 env:
   REGISTRY: ghcr.io
   SOURCE_REPO: ghcr.io/espressosystems/optimism-espresso-integration
-  EIF_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/op-batcher-eif
+  EIF_IMAGE_NAME: ghcr.io/espressosystems/op-batcher-eif
 
 jobs:
   build-eif:
