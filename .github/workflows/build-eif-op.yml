@@ -61,7 +61,7 @@ jobs:
 
       - name: Resolve tag and pull images
         run: |
-          set -euo pipefail
+          set -eo pipefail
 
           # If a branch prefix is provided, construct the full tag from it.
           # Otherwise use the tag input as-is (already the full branch-sha form).
@@ -102,7 +102,7 @@ jobs:
 
       - name: Build EIF and capture PCR0
         run: |
-          set -euo pipefail
+          set -eo pipefail
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
           echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
 
@@ -127,7 +127,7 @@ jobs:
 
       - name: Add OCI labels to EIF image
         run: |
-          set -euo pipefail
+          set -eo pipefail
           docker build -t "${{ env.EIF_TAG }}" - <<EOF
           FROM ${{ env.EIF_TAG }}
           LABEL enclave.pcr0="${{ env.PCR0 }}"
