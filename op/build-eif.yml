@@ -1,0 +1,140 @@
+##############################################################################
+# build-eif.yml
+#
+# Builds a static AWS Nitro EIF image from a published op-batcher-enclave-app
+# image and pushes op-batcher-eif with the SAME tag — so you can trace any
+# running EIF straight back to the source commit in espresso-integration.
+#
+#   espresso-integration CI  →  op-batcher-enclave-app:TAG
+#                               op-batcher-tee:TAG
+#
+#   this workflow             →  op-batcher-eif:TAG  (same TAG)
+#
+# The workflow resolves the tag to its sha256 digest after pull. Both tag 
+# and digest are stored as labels on the output image.
+#
+##############################################################################
+
+name: Build EIF Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >
+          Full tag or just the short SHA from espresso-integration CI.
+          Full tag:  celo-integration-rebase-14.2-abc1234f
+          Short SHA: abc1234f  (workflow prepends the branch prefix automatically)
+        required: true
+      branch:
+        description: >
+          Branch prefix — only needed when tag is a short SHA, e.g.:
+          celo-integration-rebase-14.2
+          Leave blank if tag is already the full branch-sha tag.
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  SOURCE_REPO: ghcr.io/espressosystems/optimism-espresso-integration
+  EIF_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/op-batcher-eif
+
+jobs:
+  build-eif:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve tag and pull images
+        run: |
+          # If a branch prefix is provided, construct the full tag from it.
+          # Otherwise use the tag input as-is (already the full branch-sha form).
+          if [ -n "${{ github.event.inputs.branch }}" ]; then
+            RESOLVED_TAG="${{ github.event.inputs.branch }}-${{ github.event.inputs.tag }}"
+          else
+            RESOLVED_TAG="${{ github.event.inputs.tag }}"
+          fi
+          echo "RESOLVED_TAG=${RESOLVED_TAG}" >> $GITHUB_ENV
+          echo "Using tag: ${RESOLVED_TAG}"
+
+          APP_IMAGE="${{ env.SOURCE_REPO }}/op-batcher-enclave-app:${RESOLVED_TAG}"
+          TEE_IMAGE="${{ env.SOURCE_REPO }}/op-batcher-tee:${RESOLVED_TAG}"
+
+          docker pull "${APP_IMAGE}"
+          docker pull "${TEE_IMAGE}"
+
+          # Resolve to tag@sha256:<digest> so re-running this workflow always
+          # builds from the exact same image bytes, even if the tag is later updated.
+          APP_IMAGE_PINNED="${APP_IMAGE}@$(docker inspect --format='{{index .RepoDigests 0}}' "${APP_IMAGE}" | cut -d@ -f2)"
+          TEE_IMAGE_PINNED="${TEE_IMAGE}@$(docker inspect --format='{{index .RepoDigests 0}}' "${TEE_IMAGE}" | cut -d@ -f2)"
+
+          echo "APP_IMAGE=${APP_IMAGE}"               >> $GITHUB_ENV
+          echo "TEE_IMAGE=${TEE_IMAGE}"               >> $GITHUB_ENV
+          echo "APP_IMAGE_PINNED=${APP_IMAGE_PINNED}" >> $GITHUB_ENV
+          echo "TEE_IMAGE_PINNED=${TEE_IMAGE_PINNED}" >> $GITHUB_ENV
+
+          echo "App image:         ${APP_IMAGE}"
+          echo "App image (pinned): ${APP_IMAGE_PINNED}"
+          echo "TEE image:         ${TEE_IMAGE}"
+
+      - name: Build EIF and capture PCR0
+        run: |
+          EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
+          echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
+
+          # enclave-tools build-eif runs inside op-batcher-tee.
+          # Docker socket is mounted so enclaver writes the EIF image to the
+          # host daemon — it persists after the container exits.
+          PCR0=$(docker run --rm --privileged \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "${{ env.TEE_IMAGE_PINNED }}" \
+            enclave-tools build-eif \
+              --app-image "${{ env.APP_IMAGE_PINNED }}" \
+              --eif-tag "${EIF_TAG}" \
+            | tail -1)
+
+          if [ -z "$PCR0" ]; then
+            echo "ERROR: empty PCR0 — enclave-tools build-eif failed"
+            exit 1
+          fi
+
+          echo "PCR0=${PCR0}" >> $GITHUB_ENV
+          echo "PCR0: ${PCR0}"
+
+      - name: Add OCI labels to EIF image
+        run: |
+          docker build -t "${{ env.EIF_TAG }}" - <<EOF
+          FROM ${{ env.EIF_TAG }}
+          LABEL enclave.pcr0="${{ env.PCR0 }}"
+          LABEL enclave.tag="${{ env.RESOLVED_TAG }}"
+          LABEL enclave.app-image="${{ env.APP_IMAGE }}"
+          LABEL enclave.app-image-pinned="${{ env.APP_IMAGE_PINNED }}"
+          LABEL enclave.tee-image="${{ env.TEE_IMAGE }}"
+          LABEL org.opencontainers.image.source="${{ github.server_url }}/${{ github.repository }}"
+          LABEL org.opencontainers.image.revision="${{ github.sha }}"
+          LABEL build.workflow.url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EOF
+
+      - name: Push EIF image
+        run: docker push "${{ env.EIF_TAG }}"
+
+      - name: Summary
+        run: |
+          echo "## EIF Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | \`${{ env.RESOLVED_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **EIF image** | \`${{ env.EIF_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next step: run the **Register Enclave Hash** workflow with tag \`${{ env.RESOLVED_TAG }}\`." >> $GITHUB_STEP_SUMMARY
