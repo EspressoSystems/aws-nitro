@@ -103,6 +103,11 @@ jobs:
           curl -fsSL https://github.com/enclaver-io/enclaver/releases/download/v0.5.0/enclaver-linux-x86_64-v0.5.0.tar.gz \
             | tar xz --strip-components=1 -C /usr/local/bin enclaver-linux-x86_64-v0.5.0/enclaver
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
       - name: Build EIF and capture measurements
         run: |
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
@@ -124,12 +129,17 @@ jobs:
             exit 1
           fi
 
+          # Compute keccak hash of PCR0 (same as Arb workflow)
+          pcr0_keccak=$(cast keccak "0x${PCR0}")
+          echo "ENCLAVE_HASH=${pcr0_keccak}" >> $GITHUB_ENV
+
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
           echo "PCR1=${PCR1}" >> $GITHUB_ENV
           echo "PCR2=${PCR2}" >> $GITHUB_ENV
           echo "PCR0: ${PCR0}"
           echo "PCR1: ${PCR1}"
           echo "PCR2: ${PCR2}"
+          echo "PCR0 keccak hash: ${pcr0_keccak}"
 
       - name: Add OCI labels to EIF image
         run: |
@@ -138,6 +148,7 @@ jobs:
           LABEL enclave.pcr0="${{ env.PCR0 }}"
           LABEL enclave.pcr1="${{ env.PCR1 }}"
           LABEL enclave.pcr2="${{ env.PCR2 }}"
+          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
           LABEL enclave.tag="${{ env.RESOLVED_TAG }}"
           LABEL enclave.app-image="${{ env.APP_IMAGE }}"
           LABEL enclave.app-image-pinned="${{ env.APP_IMAGE_PINNED }}"
@@ -161,5 +172,6 @@ jobs:
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR1** | \`${{ env.PCR1 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR2** | \`${{ env.PCR2 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Enclave hash (keccak)** | \`${{ env.ENCLAVE_HASH }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
