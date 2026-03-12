@@ -15,7 +15,7 @@
 #
 ##############################################################################
 
-name: Build EIF Image
+name: Build EIF Image (OP)
 
 on:
   workflow_dispatch:
@@ -137,4 +137,3 @@ jobs:
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Next step: run the **Register Enclave Hash** workflow with tag \`${{ env.RESOLVED_TAG }}\`." >> $GITHUB_STEP_SUMMARY
