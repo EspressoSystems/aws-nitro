@@ -6,16 +6,21 @@
 # running EIF straight back to the source commit in espresso-integration.
 #
 #   espresso-integration CI  →  op-batcher-enclave-app:TAG
-#                               op-batcher-tee:TAG
+#                               op-batcher-tee:TAG  (enclave-tools extracted from here)
 #
 #   this workflow             →  op-batcher-eif:TAG  (same TAG)
 #
-# The workflow resolves the tag to its sha256 digest after pull. Both tag 
-# and digest are stored as labels on the output image.
+# The workflow resolves the tag to its sha256 digest after pull so the EIF
+# is always built from the exact same bytes. PCR0/1/2 measurements and the
+# pinned digest are stored as labels on the output image.
 #
+# enclave-tools is extracted directly from op-batcher-tee.
+# enclaver is installed on the runner at the version pinned in the Dockerfile.
+#
+# Copy this file to .github/workflows/build-eif.yml in the infra repo.
 ##############################################################################
 
-name: Build EIF Image (OP)
+name: Build EIF Image
 
 on:
   workflow_dispatch:
@@ -32,12 +37,6 @@ on:
           celo-integration-rebase-14.2
           Leave blank if tag is already the full branch-sha tag.
         required: false
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
 
 env:
   REGISTRY: ghcr.io
@@ -61,21 +60,12 @@ jobs:
 
       - name: Resolve tag and pull images
         run: |
-          set -eo pipefail
-
           # If a branch prefix is provided, construct the full tag from it.
           # Otherwise use the tag input as-is (already the full branch-sha form).
-          # On push/PR triggers (no inputs), fall back to a default tag.
-          INPUT_TAG="${{ github.event.inputs.tag }}"
-          INPUT_BRANCH="${{ github.event.inputs.branch }}"
-
-          if [ -z "${INPUT_TAG}" ]; then
-            RESOLVED_TAG="celo-integration-rebase-14.2"
-            echo "No tag input provided, using default: ${RESOLVED_TAG}"
-          elif [ -n "${INPUT_BRANCH}" ]; then
-            RESOLVED_TAG="${INPUT_BRANCH}-${INPUT_TAG}"
+          if [ -n "${{ github.event.inputs.branch }}" ]; then
+            RESOLVED_TAG="${{ github.event.inputs.branch }}-${{ github.event.inputs.tag }}"
           else
-            RESOLVED_TAG="${INPUT_TAG}"
+            RESOLVED_TAG="${{ github.event.inputs.tag }}"
           fi
           echo "RESOLVED_TAG=${RESOLVED_TAG}" >> $GITHUB_ENV
           echo "Using tag: ${RESOLVED_TAG}"
@@ -100,37 +90,54 @@ jobs:
           echo "App image (pinned): ${APP_IMAGE_PINNED}"
           echo "TEE image:         ${TEE_IMAGE}"
 
-      - name: Build EIF and capture PCR0
+      - name: Extract enclave-tools and install enclaver
         run: |
-          set -eo pipefail
+          # Extract enclave-tools from op-batcher-tee — ensures the tool version
+          # matches the app image being wrapped (same source tag).
+          id=$(docker create "${{ env.TEE_IMAGE_PINNED }}")
+          docker cp $id:/usr/local/bin/enclave-tools /usr/local/bin/enclave-tools
+          docker rm $id
+          chmod +x /usr/local/bin/enclave-tools
+
+          # Install enclaver at the version pinned in espresso/docker/op-stack/Dockerfile.
+          curl -fsSL https://github.com/enclaver-io/enclaver/releases/download/v0.5.0/enclaver-linux-x86_64-v0.5.0.tar.gz \
+            | tar xz --strip-components=1 -C /usr/local/bin enclaver-linux-x86_64-v0.5.0/enclaver
+
+      - name: Build EIF and capture measurements
+        run: |
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
           echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
 
-          # enclave-tools build-eif runs inside op-batcher-tee.
-          # Docker socket is mounted so enclaver writes the EIF image to the
-          # host daemon — it persists after the container exits.
-          PCR0=$(docker run --rm --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            "${{ env.TEE_IMAGE_PINNED }}" \
-            enclave-tools build-eif \
-              --app-image "${{ env.APP_IMAGE_PINNED }}" \
-              --eif-tag "${EIF_TAG}" \
-            | tail -1)
+          # Run enclave-tools directly on the host — no Docker-in-Docker.
+          # enclaver writes the EIF Docker image to the local daemon.
+          BUILD_OUTPUT=$(enclave-tools build-eif \
+            --app-image "${{ env.APP_IMAGE_PINNED }}" \
+            --eif-tag "${EIF_TAG}")
+
+          PCR0=$(echo "${BUILD_OUTPUT}" | grep '^PCR0=' | cut -d= -f2)
+          PCR1=$(echo "${BUILD_OUTPUT}" | grep '^PCR1=' | cut -d= -f2)
+          PCR2=$(echo "${BUILD_OUTPUT}" | grep '^PCR2=' | cut -d= -f2)
 
           if [ -z "$PCR0" ]; then
             echo "ERROR: empty PCR0 — enclave-tools build-eif failed"
+            echo "Output was: ${BUILD_OUTPUT}"
             exit 1
           fi
 
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
+          echo "PCR1=${PCR1}" >> $GITHUB_ENV
+          echo "PCR2=${PCR2}" >> $GITHUB_ENV
           echo "PCR0: ${PCR0}"
+          echo "PCR1: ${PCR1}"
+          echo "PCR2: ${PCR2}"
 
       - name: Add OCI labels to EIF image
         run: |
-          set -eo pipefail
           docker build -t "${{ env.EIF_TAG }}" - <<EOF
           FROM ${{ env.EIF_TAG }}
           LABEL enclave.pcr0="${{ env.PCR0 }}"
+          LABEL enclave.pcr1="${{ env.PCR1 }}"
+          LABEL enclave.pcr2="${{ env.PCR2 }}"
           LABEL enclave.tag="${{ env.RESOLVED_TAG }}"
           LABEL enclave.app-image="${{ env.APP_IMAGE }}"
           LABEL enclave.app-image-pinned="${{ env.APP_IMAGE_PINNED }}"
@@ -152,5 +159,7 @@ jobs:
           echo "| **Tag** | \`${{ env.RESOLVED_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **EIF image** | \`${{ env.EIF_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PCR1** | \`${{ env.PCR1 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PCR2** | \`${{ env.PCR2 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
