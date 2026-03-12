@@ -32,6 +32,12 @@ on:
           celo-integration-rebase-14.2
           Leave blank if tag is already the full branch-sha tag.
         required: false
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io
