@@ -128,9 +128,6 @@ jobs:
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
           echo "PCR1=${PCR1}" >> $GITHUB_ENV
           echo "PCR2=${PCR2}" >> $GITHUB_ENV
-          echo "PCR0: ${PCR0}"
-          echo "PCR1: ${PCR1}"
-          echo "PCR2: ${PCR2}"
 
       - name: Layer run-eif.sh and add OCI labels
         run: |
