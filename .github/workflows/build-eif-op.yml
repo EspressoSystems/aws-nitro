@@ -27,7 +27,7 @@
 # Copy this file to .github/workflows/build-eif.yml in the infra repo.
 ##############################################################################
 
-name: Build EIF Image
+name: Build EIF Image (OP)
 
 on:
   workflow_dispatch:
@@ -189,4 +189,5 @@ jobs:
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Pull and run \`${{ env.EIF_TAG }}\` — EIF is baked in." >> $GITHUB_STEP_SUMMARY
-          echo "Set batcher env vars: \`L1_RPC_URL\`, \`L2_RPC_URL\`, \`ROLLUP_RPC_URL\`, \`ESPRESSO_URL1\`, \`OPERATOR_PRIVATE_KEY\`, \`ESPRESSO_ATTESTATION_SERVICE_URL\`, \`EIGENDA_PROXY_URL\`." >> $GITHUB_STEP_SUMMARY
+          echo "**Required:** \`L1_RPC_URL\`, \`L2_RPC_URL\`, \`ROLLUP_RPC_URL\`, \`ESPRESSO_URL1\`, \`OP_BATCHER_PRIVATE_KEY\`, \`ESPRESSO_ATTESTATION_SERVICE_URL\`, \`EIGENDA_PROXY_URL\`." >> $GITHUB_STEP_SUMMARY
+          echo "**Optional:** \`ESPRESSO_URL2\` (defaults to ESPRESSO_URL1), \`ESPRESSO_LIGHT_CLIENT_ADDR\` (has a default address)." >> $GITHUB_STEP_SUMMARY
