@@ -185,6 +185,10 @@ if [ -z "$ENCLAVE_ID" ]; then
 fi
 echo "Enclave started with ID: $ENCLAVE_ID"
 
+# Wait for the enclave to fully initialize before delivering args.
+echo "Waiting for enclave to finish booting..."
+sleep 3
+
 # Deliver batcher arguments to the enclave's nc listener (args not logged here).
 echo "Sending batcher arguments to enclave..."
 send_batcher_args | timeout 30 nc 127.0.0.1 8337
