@@ -16,15 +16,22 @@
 #   affect PCR0 — PCR0 is sealed at enclaver build time.
 #
 # Traceability:
-#   espresso-integration CI  →  op-batcher-enclave-app:TAG  (app, goes in EIF)
-#                               op-batcher-tee:TAG           (run-eif.sh source)
+#   espressosystems/optimism-espresso-integration  →  op-batcher-enclave-app:TAG  (app, goes in EIF)
+#                                                      op-batcher-tee:TAG          (enclave-tools)
 #
-#   this workflow             →  op-batcher-eif:TAG          (self-contained runner)
+#   this workflow (infra repo)  →  op-batcher-eif:TAG  (self-contained runner)
+#
+# run-eif.sh lives in THIS repo (the infra repo) alongside this workflow file.
+# To update the runner script, edit run-eif.sh here and re-run this workflow
+# with the same app tag — no espresso-integration CI rebuild needed.
 #
 # The workflow resolves input tags to sha256 digests immediately after pull so
 # re-running produces identical EIF bytes and identical PCR measurements.
 #
-# Copy this file to .github/workflows/build-eif.yml in the infra repo.
+# Setup:
+#   1. Copy this file to .github/workflows/build-eif.yml in the infra repo.
+#   2. Copy run-eif.sh (from espressosystems/optimism-espresso-integration
+#      espresso/docker/op-batcher-tee/run-eif.sh) to the root of the infra repo.
 ##############################################################################
 
 name: Build EIF Image (OP)
@@ -48,7 +55,7 @@ on:
 env:
   REGISTRY: ghcr.io
   SOURCE_REPO: ghcr.io/espressosystems/optimism-espresso-integration
-  EIF_IMAGE_NAME: ghcr.io/espressosystems/op-batcher-eif
+  EIF_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/op-batcher-eif
 
 jobs:
   build-eif:
@@ -58,6 +65,14 @@ jobs:
       packages: write
 
     steps:
+      - name: Checkout infra repo (for run-eif.sh)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Lowercase image names
+        run: echo "EIF_IMAGE_NAME=${EIF_IMAGE_NAME,,}" >> $GITHUB_ENV
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -128,18 +143,15 @@ jobs:
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
           echo "PCR1=${PCR1}" >> $GITHUB_ENV
           echo "PCR2=${PCR2}" >> $GITHUB_ENV
+          echo "PCR0: ${PCR0}"
+          echo "PCR1: ${PCR1}"
+          echo "PCR2: ${PCR2}"
 
       - name: Layer run-eif.sh and add OCI labels
         run: |
-          # Extract run-eif.sh from op-batcher-tee (versions stay in sync with source tag).
-          id=$(docker create "${{ env.TEE_IMAGE_PINNED }}")
-          docker cp $id:/source/espresso/docker/op-batcher-tee/run-eif.sh ./run-eif.sh
-          docker rm $id
-          chmod +x ./run-eif.sh
-
-          # Build into a temp directory so COPY has a local context.
           BUILDCTX=$(mktemp -d)
-          cp run-eif.sh "$BUILDCTX/"
+          cp op/run-eif.sh "$BUILDCTX/run-eif.sh"
+          chmod +x "$BUILDCTX/run-eif.sh"
 
           cat > "$BUILDCTX/Dockerfile" <<DOCKERFILE
           FROM busybox:musl AS busybox
