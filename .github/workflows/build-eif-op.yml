@@ -104,6 +104,11 @@ jobs:
           echo "App image (pinned): ${APP_IMAGE_PINNED}"
           echo "TEE image (pinned): ${TEE_IMAGE_PINNED}"
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
       - name: Extract enclave-tools and install enclaver
         run: |
           # Extract enclave-tools from op-batcher-tee — ensures the tool version
@@ -136,12 +141,13 @@ jobs:
             exit 1
           fi
 
+          # Compute keccak hash of PCR0 (same as Arb workflow)
+          ENCLAVE_HASH=$(cast keccak "0x${PCR0}")
+          echo "ENCLAVE_HASH=${ENCLAVE_HASH}" >> $GITHUB_ENV
+
           echo "PCR0=${PCR0}" >> $GITHUB_ENV
           echo "PCR1=${PCR1}" >> $GITHUB_ENV
           echo "PCR2=${PCR2}" >> $GITHUB_ENV
-          echo "PCR0: ${PCR0}"
-          echo "PCR1: ${PCR1}"
-          echo "PCR2: ${PCR2}"
 
       - name: Layer run-eif.sh and add OCI labels
         run: |
@@ -162,6 +168,7 @@ jobs:
           LABEL enclave.pcr0="${{ env.PCR0 }}"
           LABEL enclave.pcr1="${{ env.PCR1 }}"
           LABEL enclave.pcr2="${{ env.PCR2 }}"
+          LABEL enclave.hash="${{ env.ENCLAVE_HASH }}"
           LABEL enclave.tag="${{ env.RESOLVED_TAG }}"
           LABEL enclave.app-image="${{ env.APP_IMAGE }}"
           LABEL enclave.app-image-pinned="${{ env.APP_IMAGE_PINNED }}"
@@ -189,6 +196,7 @@ jobs:
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR1** | \`${{ env.PCR1 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR2** | \`${{ env.PCR2 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Enclave hash (keccak)** | \`${{ env.ENCLAVE_HASH }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
