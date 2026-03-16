@@ -85,7 +85,6 @@ send_batcher_args() {
         "--max-l1-tx-size-bytes=$MAX_L1_TX_SIZE_BYTES" \
         "--max-pending-tx=32" \
         "--espresso.light-client-addr=$ESPRESSO_LIGHT_CLIENT_ADDR" \
-        "--espresso.espresso-attestation-service=$ESPRESSO_ATTESTATION_SERVICE_URL" \
         "--altda.enabled=true" \
         "--altda.da-server=$EIGENDA_PROXY_URL" \
         "--altda.da-service=true" \
@@ -138,7 +137,6 @@ trap 'enclave_shutdown' TERM INT
 # ---------------------------------------------------------------------------
 
 # Terminate any stale enclaves left by a previous task.
-echo "describe-enclaves output: $(/bin/nitro-cli describe-enclaves 2>&1)"
 enclave_terminate_all
 
 # Assert no enclaves are running — guarantees the ID we capture later is ours.
@@ -156,9 +154,8 @@ ENCLAVER_PID=$!
 echo "enclaver-run started with PID: $ENCLAVER_PID"
 
 # Wait for the enclave to appear in describe-enclaves.
-#
-# The enclave's nc listener, accepts exactly ONE connection.
-# Polling describe-enclaves is safe: it never touches the ingress proxy.
+# Do NOT poll TCP:8337 — connections propagate to the enclave's one-shot nc
+# listener and would consume the slot before we deliver the batcher args.
 echo "Waiting for enclave to start (via describe-enclaves)..."
 i=0
 while [ $i -lt 120 ]; do

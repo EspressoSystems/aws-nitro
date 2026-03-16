@@ -21,17 +21,13 @@
 #
 #   this workflow (infra repo)  →  op-batcher-eif:TAG  (self-contained runner)
 #
-# run-eif.sh lives in THIS repo (the infra repo) alongside this workflow file.
-# To update the runner script, edit run-eif.sh here and re-run this workflow
+# run-eif.sh lives in this repo alongside this workflow file.
+# To update the runner script, edit run-eif.sh and re-run this workflow
 # with the same app tag — no espresso-integration CI rebuild needed.
 #
 # The workflow resolves input tags to sha256 digests immediately after pull so
 # re-running produces identical EIF bytes and identical PCR measurements.
 #
-# Setup:
-#   1. Copy this file to .github/workflows/build-eif.yml in the infra repo.
-#   2. Copy run-eif.sh (from espressosystems/optimism-espresso-integration
-#      espresso/docker/op-batcher-tee/run-eif.sh) to the root of the infra repo.
 ##############################################################################
 
 name: Build EIF Image (OP)
