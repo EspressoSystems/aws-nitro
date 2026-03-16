@@ -117,14 +117,9 @@ enclave_terminate_all() {
     done
 }
 
-# Terminate our specific enclave by ID (set after startup).
-ENCLAVE_ID=""
 enclave_shutdown() {
     echo "Received shutdown signal"
-    if [ -n "$ENCLAVE_ID" ]; then
-        echo "Terminating enclave: $ENCLAVE_ID"
-        /bin/nitro-cli terminate-enclave --enclave-id "$ENCLAVE_ID" 2>/dev/null || true
-    fi
+    # Signal enclaver-run and let it terminate the enclave — it owns that lifecycle.
     kill "$ENCLAVER_PID" 2>/dev/null
     wait "$ENCLAVER_PID" 2>/dev/null
     exit 0
