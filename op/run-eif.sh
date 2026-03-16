@@ -155,12 +155,16 @@ echo "Starting enclaver-run..."
 ENCLAVER_PID=$!
 echo "enclaver-run started with PID: $ENCLAVER_PID"
 
-# Wait for the ingress port (enclaver-run's vsock bridge) to be ready.
-echo "Waiting for enclave ingress port 8337..."
+# Wait for the enclave to appear in describe-enclaves.
+#
+# The enclave's nc listener, accepts exactly ONE connection.
+# Polling describe-enclaves is safe: it never touches the ingress proxy.
+echo "Waiting for enclave to start (via describe-enclaves)..."
 i=0
 while [ $i -lt 120 ]; do
-    if nc -z 127.0.0.1 8337 2>/dev/null; then
-        echo "Enclave ingress port 8337 ready"
+    ENCLAVE_ID=$(enclave_list_ids)
+    if [ -n "$ENCLAVE_ID" ]; then
+        echo "Enclave started with ID: $ENCLAVE_ID"
         break
     fi
     if ! kill -0 "$ENCLAVER_PID" 2>/dev/null; then
@@ -171,23 +175,15 @@ while [ $i -lt 120 ]; do
     i=$((i + 1))
 done
 
-if ! nc -z 127.0.0.1 8337 2>/dev/null; then
-    echo "ERROR: Enclave ingress port 8337 did not open within 120 seconds"
-    exit 1
-fi
-
-# Capture the ID of the enclave we just started.
-# The pre-start assertion above guarantees this is exactly our enclave.
-ENCLAVE_ID=$(enclave_list_ids)
 if [ -z "$ENCLAVE_ID" ]; then
-    echo "ERROR: enclave not found after startup"
+    echo "ERROR: Enclave did not start within 120 seconds"
     exit 1
 fi
-echo "Enclave started with ID: $ENCLAVE_ID"
 
-# Wait for the enclave to fully initialize before delivering args.
+# Give the enclave's entrypoint a few seconds to start its nc listener
+# after the enclave registers in describe-enclaves.
 echo "Waiting for enclave to finish booting..."
-sleep 3
+sleep 5
 
 # Deliver batcher arguments to the enclave's nc listener (args not logged here).
 echo "Sending batcher arguments to enclave..."
