@@ -8,25 +8,6 @@
 #                         Built by wrapping op-batcher-enclave-app with
 #                         enclaver (EIF + enclaver-run proxy), then layering
 #                         run-eif.sh on top as ENTRYPOINT.
-#                         Pull it, set the batcher env vars, and run.
-#
-# PCR traceability:
-#   PCR0/1/2 are computed from the EIF content (which comes from
-#   op-batcher-enclave-app).  Adding run-eif.sh as an outer layer does NOT
-#   affect PCR0 — PCR0 is sealed at enclaver build time.
-#
-# Traceability:
-#   espressosystems/optimism-espresso-integration  →  op-batcher-enclave-app:TAG  (app, goes in EIF)
-#                                                      op-batcher-tee:TAG          (enclave-tools)
-#
-#   this workflow (infra repo)  →  op-batcher-eif:TAG  (self-contained runner)
-#
-# run-eif.sh lives in this repo alongside this workflow file.
-# To update the runner script, edit run-eif.sh and re-run this workflow
-# with the same app tag — no espresso-integration CI rebuild needed.
-#
-# The workflow resolves input tags to sha256 digests immediately after pull so
-# re-running produces identical EIF bytes and identical PCR measurements.
 #
 ##############################################################################
 
@@ -46,6 +27,16 @@ on:
           Branch prefix — only needed when tag is a short SHA, e.g.:
           celo-integration-rebase-14.2
           Leave blank if tag is already the full branch-sha tag.
+        required: false
+      cpu_count:
+        description: >
+          Number of vCPUs to allocate to the enclave (e.g. 2).
+          Leave blank to use the enclave-tools default.
+        required: false
+      memory_mb:
+        description: >
+          Memory in MiB to allocate to the enclave (e.g. 4096).
+          Leave blank to use the enclave-tools default.
         required: false
 
 env:
@@ -127,9 +118,18 @@ jobs:
           EIF_TAG="${{ env.EIF_IMAGE_NAME }}:${{ env.RESOLVED_TAG }}"
           echo "EIF_TAG=${EIF_TAG}" >> $GITHUB_ENV
 
+          EXTRA_ARGS=""
+          if [ -n "${{ github.event.inputs.cpu_count }}" ]; then
+            EXTRA_ARGS="${EXTRA_ARGS} --cpu-count ${{ github.event.inputs.cpu_count }}"
+          fi
+          if [ -n "${{ github.event.inputs.memory_mb }}" ]; then
+            EXTRA_ARGS="${EXTRA_ARGS} --memory-m ${{ github.event.inputs.memory_mb }}"
+          fi
+
           BUILD_OUTPUT=$(enclave-tools build-eif \
             --app-image "${{ env.APP_IMAGE_PINNED }}" \
-            --eif-tag "${EIF_TAG}")
+            --eif-tag "${EIF_TAG}" \
+            ${EXTRA_ARGS})
 
           PCR0=$(echo "${BUILD_OUTPUT}" | grep '^PCR0=' | cut -d= -f2)
           PCR1=$(echo "${BUILD_OUTPUT}" | grep '^PCR1=' | cut -d= -f2)
@@ -193,11 +193,17 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Tag** | \`${{ env.RESOLVED_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Runner image** | \`${{ env.EIF_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ github.event.inputs.cpu_count }}" ]; then
+            echo "| **CPU count** | \`${{ github.event.inputs.cpu_count }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ github.event.inputs.memory_mb }}" ]; then
+            echo "| **Memory (MiB)** | \`${{ github.event.inputs.memory_mb }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "| **PCR0** | \`${{ env.PCR0 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR1** | \`${{ env.PCR1 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **PCR2** | \`${{ env.PCR2 }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Enclave hash (keccak)** | \`${{ env.ENCLAVE_HASH }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **App image (pinned)** | \`${{ env.APP_IMAGE_PINNED }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

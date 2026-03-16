@@ -141,16 +141,23 @@ if [ -n "$LEFTOVER" ]; then
     exit 1
 fi
 
+# Verify TCP:8337 is free before starting — fail fast rather than letting
+# enclaver-run silently fail with EADDRINUSE on vsock:17002 later.
+if nc -z 127.0.0.1 8337 2>/dev/null; then
+    echo "ERROR: TCP port 8337 already bound after enclave cleanup."
+    echo "       A stale enclaver-run process is likely holding vsock:17002."
+    echo "       Terminate the EC2 instance to release the vsock port."
+    exit 1
+fi
+
 # Start enclaver-run — reads /enclave/enclaver.yaml, starts the Nitro enclave
-# from /enclave/application.eif, and proxies TCP:8337 → vsock:8337.
+# from /enclave/application.eif, and bridges TCP:8337/8338 → vsock:8337/8338.
 echo "Starting enclaver-run..."
 /usr/local/bin/enclaver-run &
 ENCLAVER_PID=$!
 echo "enclaver-run started with PID: $ENCLAVER_PID"
 
-# Wait for the enclave to appear in describe-enclaves.
-# Do NOT poll TCP:8337 — connections propagate to the enclave's one-shot nc
-# listener and would consume the slot before we deliver the batcher args.
+# Poll describe-enclaves until the enclave ID appears (up to 120 s).
 echo "Waiting for enclave to start (via describe-enclaves)..."
 i=0
 while [ $i -lt 120 ]; do
@@ -172,10 +179,28 @@ if [ -z "$ENCLAVE_ID" ]; then
     exit 1
 fi
 
-# Give the enclave's entrypoint a few seconds to start its nc listener
-# after the enclave registers in describe-enclaves.
-echo "Waiting for enclave to finish booting..."
-sleep 5
+# Wait for the enclave's readiness signal on port 8338 (handshake).
+# enclave-entrypoint.bash sends "READY" on 8338 after nc:8337 is listening
+# and Odyn is verified.
+echo "Waiting for enclave readiness signal on port 8338..."
+READY=""
+i=0
+while [ $i -lt 30 ]; do
+    READY=$(timeout 3 nc 127.0.0.1 8338 2>/dev/null || true)
+    if [ -n "$READY" ]; then
+        echo "Enclave ready (readiness signal received)"
+        break
+    fi
+    if ! kill -0 "$ENCLAVER_PID" 2>/dev/null; then
+        echo "ERROR: enclaver-run exited before readiness signal"
+        exit 1
+    fi
+    sleep 1
+    i=$((i + 1))
+done
+if [ -z "$READY" ]; then
+    echo "WARNING: readiness signal not received within 30 seconds, proceeding anyway"
+fi
 
 # Deliver batcher arguments to the enclave's nc listener (args not logged here).
 echo "Sending batcher arguments to enclave..."
