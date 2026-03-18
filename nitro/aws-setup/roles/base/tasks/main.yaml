@@ -136,7 +136,7 @@
 #
 # Socat proxy
 #
-- name: Install my Service
+- name: Install socat systemd service
   ansible.builtin.copy:
     src: socat.service
     dest: /etc/systemd/system/socat.service
