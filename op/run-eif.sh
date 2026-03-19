@@ -32,6 +32,7 @@ ENCLAVE_DEBUG="${ENCLAVE_DEBUG:-false}"
 MAX_CHANNEL_DURATION="${MAX_CHANNEL_DURATION:-2}"
 TARGET_NUM_FRAMES="${TARGET_NUM_FRAMES:-1}"
 MAX_L1_TX_SIZE_BYTES="${MAX_L1_TX_SIZE_BYTES:-120000}"
+DATA_AVAILABILITY_TYPE="${DATA_AVAILABILITY_TYPE:-auto}"
 ALTDA_MAX_CONCURRENT_DA_REQUESTS="${ALTDA_MAX_CONCURRENT_DA_REQUESTS:-1}"
 ALTDA_DA_SERVICE="${ALTDA_DA_SERVICE:-true}"
 ALTDA_VERIFY_ON_READ="${ALTDA_VERIFY_ON_READ:-false}"
@@ -102,7 +103,7 @@ send_batcher_args() {
         "--altda.max-concurrent-da-requests=$ALTDA_MAX_CONCURRENT_DA_REQUESTS" \
         "--altda.put-timeout=$ALTDA_PUT_TIMEOUT" \
         "--altda.get-timeout=$ALTDA_GET_TIMEOUT" \
-        "--data-availability-type=altda"
+        "--data-availability-type=$DATA_AVAILABILITY_TYPE"
     if [ "$ENCLAVE_DEBUG" = "true" ]; then
         printf '%s\0' "--log.level=debug"
         echo "Debug logging enabled" >&2
