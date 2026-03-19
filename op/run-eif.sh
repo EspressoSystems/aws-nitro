@@ -33,6 +33,11 @@ MAX_CHANNEL_DURATION="${MAX_CHANNEL_DURATION:-2}"
 TARGET_NUM_FRAMES="${TARGET_NUM_FRAMES:-1}"
 MAX_L1_TX_SIZE_BYTES="${MAX_L1_TX_SIZE_BYTES:-120000}"
 ALTDA_MAX_CONCURRENT_DA_REQUESTS="${ALTDA_MAX_CONCURRENT_DA_REQUESTS:-1}"
+ALTDA_DA_SERVICE="${ALTDA_DA_SERVICE:-true}"
+ALTDA_VERIFY_ON_READ="${ALTDA_VERIFY_ON_READ:-false}"
+ALTDA_PUT_TIMEOUT="${ALTDA_PUT_TIMEOUT:-30s}"
+ALTDA_GET_TIMEOUT="${ALTDA_GET_TIMEOUT:-30s}"
+THROTTLE_THRESHOLD="${THROTTLE_THRESHOLD:-0}"
 
 # Get light client address from env var or use default
 if [ -n "$ESPRESSO_LIGHT_CLIENT_ADDR" ]; then
@@ -62,6 +67,11 @@ echo "Max Channel Duration: $MAX_CHANNEL_DURATION"
 echo "Target Num Frames: $TARGET_NUM_FRAMES"
 echo "Max L1 Tx Size Bytes: $MAX_L1_TX_SIZE_BYTES"
 echo "AltDA Max Concurrent DA Requests: $ALTDA_MAX_CONCURRENT_DA_REQUESTS"
+echo "AltDA DA Service: $ALTDA_DA_SERVICE"
+echo "AltDA Verify On Read: $ALTDA_VERIFY_ON_READ"
+echo "AltDA Put Timeout: $ALTDA_PUT_TIMEOUT"
+echo "AltDA Get Timeout: $ALTDA_GET_TIMEOUT"
+echo "Throttle Threshold: $THROTTLE_THRESHOLD"
 echo "====================================="
 
 # Send batcher args as a NUL-separated stream.
@@ -80,19 +90,18 @@ send_batcher_args() {
         "--espresso.origin-height-espresso=$ESPRESSO_ORIGIN_HEIGHT_ESPRESSO" \
         "--espresso.origin-height-l2=$ESPRESSO_ORIGIN_HEIGHT_L2" \
         "--private-key=$OP_BATCHER_PRIVATE_KEY" \
-        "--throttle-threshold=0" \
+        "--throttle-threshold=$THROTTLE_THRESHOLD" \
         "--max-channel-duration=$MAX_CHANNEL_DURATION" \
         "--target-num-frames=$TARGET_NUM_FRAMES" \
         "--max-l1-tx-size-bytes=$MAX_L1_TX_SIZE_BYTES" \
-        "--max-pending-tx=32" \
         "--espresso.light-client-addr=$ESPRESSO_LIGHT_CLIENT_ADDR" \
         "--altda.enabled=true" \
         "--altda.da-server=$EIGENDA_PROXY_URL" \
-        "--altda.da-service=true" \
-        "--altda.verify-on-read=false" \
+        "--altda.da-service=$ALTDA_DA_SERVICE" \
+        "--altda.verify-on-read=$ALTDA_VERIFY_ON_READ" \
         "--altda.max-concurrent-da-requests=$ALTDA_MAX_CONCURRENT_DA_REQUESTS" \
-        "--altda.put-timeout=30s" \
-        "--altda.get-timeout=30s" \
+        "--altda.put-timeout=$ALTDA_PUT_TIMEOUT" \
+        "--altda.get-timeout=$ALTDA_GET_TIMEOUT" \
         "--data-availability-type=altda"
     if [ "$ENCLAVE_DEBUG" = "true" ]; then
         printf '%s\0' "--log.level=debug"
