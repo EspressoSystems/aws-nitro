@@ -18,16 +18,12 @@ on:
     inputs:
       tag:
         description: >
-          Full tag or just the short SHA from espresso-integration CI.
-          Full tag:  celo-integration-rebase-14.2-abc1234f
-          Short SHA: abc1234f  (workflow prepends the branch prefix automatically)
+          Image tag from espressosystems/optimism-espresso-integration.
+          Can be a branch name, release tag, or commit SHA, e.g.:
+          light-client-env-to-enclave-sh  (branch)
+          v1.2.3                          (release)
+          fa0f50f2                        (commit SHA)
         required: true
-      branch:
-        description: >
-          Branch prefix — only needed when tag is a short SHA, e.g.:
-          celo-integration-rebase-14.2
-          Leave blank if tag is already the full branch-sha tag.
-        required: false
       cpu_count:
         description: >
           Number of vCPUs to allocate to the enclave (e.g. 2).
@@ -69,11 +65,7 @@ jobs:
 
       - name: Resolve tag and pull images
         run: |
-          if [ -n "${{ github.event.inputs.branch }}" ]; then
-            RESOLVED_TAG="${{ github.event.inputs.branch }}-${{ github.event.inputs.tag }}"
-          else
-            RESOLVED_TAG="${{ github.event.inputs.tag }}"
-          fi
+          RESOLVED_TAG="${{ github.event.inputs.tag }}"
           echo "RESOLVED_TAG=${RESOLVED_TAG}" >> $GITHUB_ENV
           echo "Using tag: ${RESOLVED_TAG}"
 
