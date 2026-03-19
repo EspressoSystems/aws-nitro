@@ -38,6 +38,7 @@ ALTDA_MAX_CONCURRENT_DA_REQUESTS="${ALTDA_MAX_CONCURRENT_DA_REQUESTS:-1}"
 if [ -n "$ESPRESSO_LIGHT_CLIENT_ADDR" ]; then
     echo "Using ESPRESSO_LIGHT_CLIENT_ADDR from environment variable"
 else
+    # Decaf light client address for ETH Sepoliaß
     ESPRESSO_LIGHT_CLIENT_ADDR="0x303872bb82a191771321d4828888920100d0b3e4"
     echo "ESPRESSO_LIGHT_CLIENT_ADDR not set, using default"
 fi
@@ -92,7 +93,7 @@ send_batcher_args() {
         "--altda.max-concurrent-da-requests=$ALTDA_MAX_CONCURRENT_DA_REQUESTS" \
         "--altda.put-timeout=30s" \
         "--altda.get-timeout=30s" \
-        "--data-availability-type=calldata"
+        "--data-availability-type=altda"
     if [ "$ENCLAVE_DEBUG" = "true" ]; then
         printf '%s\0' "--log.level=debug"
         echo "Debug logging enabled" >&2
