@@ -39,6 +39,10 @@ ALTDA_VERIFY_ON_READ="${ALTDA_VERIFY_ON_READ:-false}"
 ALTDA_PUT_TIMEOUT="${ALTDA_PUT_TIMEOUT:-30s}"
 ALTDA_GET_TIMEOUT="${ALTDA_GET_TIMEOUT:-30s}"
 THROTTLE_THRESHOLD="${THROTTLE_THRESHOLD:-0}"
+COMPRESSION_ALGO="${COMPRESSION_ALGO:-brotli-9}"
+SUB_SAFETY_MARGIN="${SUB_SAFETY_MARGIN:-6}"
+TXMGR_MIN_TIP_CAP="${TXMGR_MIN_TIP_CAP:-0.02}"
+MAX_PENDING_TX="${MAX_PENDING_TX:-32}"
 
 # Get light client address from env var or use default
 if [ -n "$ESPRESSO_LIGHT_CLIENT_ADDR" ]; then
@@ -73,6 +77,10 @@ echo "AltDA Verify On Read: $ALTDA_VERIFY_ON_READ"
 echo "AltDA Put Timeout: $ALTDA_PUT_TIMEOUT"
 echo "AltDA Get Timeout: $ALTDA_GET_TIMEOUT"
 echo "Throttle Threshold: $THROTTLE_THRESHOLD"
+echo "Compression Algo: $COMPRESSION_ALGO"
+echo "Sub Safety Margin: $SUB_SAFETY_MARGIN"
+echo "TxMgr Min Tip Cap: $TXMGR_MIN_TIP_CAP"
+echo "Max Pending Tx: $MAX_PENDING_TX"
 echo "====================================="
 
 # Send batcher args as a NUL-separated stream.
@@ -103,7 +111,11 @@ send_batcher_args() {
         "--altda.max-concurrent-da-requests=$ALTDA_MAX_CONCURRENT_DA_REQUESTS" \
         "--altda.put-timeout=$ALTDA_PUT_TIMEOUT" \
         "--altda.get-timeout=$ALTDA_GET_TIMEOUT" \
-        "--data-availability-type=$DATA_AVAILABILITY_TYPE"
+        "--data-availability-type=$DATA_AVAILABILITY_TYPE" \
+        "--compression-algo=$COMPRESSION_ALGO" \
+        "--sub-safety-margin=$SUB_SAFETY_MARGIN" \
+        "--txmgr.min-tip-cap=$TXMGR_MIN_TIP_CAP" \
+        "--max-pending-tx=$MAX_PENDING_TX"
     if [ "$ENCLAVE_DEBUG" = "true" ]; then
         printf '%s\0' "--log.level=debug"
         echo "Debug logging enabled" >&2
