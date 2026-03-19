@@ -39,6 +39,11 @@ ALTDA_VERIFY_ON_READ="${ALTDA_VERIFY_ON_READ:-true}"
 ALTDA_PUT_TIMEOUT="${ALTDA_PUT_TIMEOUT:-0}"
 ALTDA_GET_TIMEOUT="${ALTDA_GET_TIMEOUT:-0}"
 THROTTLE_THRESHOLD="${THROTTLE_THRESHOLD:-1000000}"
+POLL_INTERVAL="${POLL_INTERVAL:-1s}"
+NUM_CONFIRMATIONS="${NUM_CONFIRMATIONS:-8}"
+RESUBMISSION_TIMEOUT="${RESUBMISSION_TIMEOUT:-30s}"
+RPC_ENABLE_ADMIN="${RPC_ENABLE_ADMIN:-false}"
+ESPRESSO_POLL_INTERVAL="${ESPRESSO_POLL_INTERVAL:-1s}"
 COMPRESSION_ALGO="${COMPRESSION_ALGO:-zlib}"
 SUB_SAFETY_MARGIN="${SUB_SAFETY_MARGIN:-10}"
 TXMGR_MIN_TIP_CAP="${TXMGR_MIN_TIP_CAP:-1.0}"
@@ -77,6 +82,11 @@ echo "AltDA Verify On Read: $ALTDA_VERIFY_ON_READ"
 echo "AltDA Put Timeout: $ALTDA_PUT_TIMEOUT"
 echo "AltDA Get Timeout: $ALTDA_GET_TIMEOUT"
 echo "Throttle Threshold: $THROTTLE_THRESHOLD"
+echo "Poll Interval: $POLL_INTERVAL"
+echo "Num Confirmations: $NUM_CONFIRMATIONS"
+echo "Resubmission Timeout: $RESUBMISSION_TIMEOUT"
+echo "RPC Enable Admin: $RPC_ENABLE_ADMIN"
+echo "Espresso Poll Interval: $ESPRESSO_POLL_INTERVAL"
 echo "Compression Algo: $COMPRESSION_ALGO"
 echo "Sub Safety Margin: $SUB_SAFETY_MARGIN"
 echo "TxMgr Min Tip Cap: $TXMGR_MIN_TIP_CAP"
@@ -98,7 +108,12 @@ send_batcher_args() {
         "--espresso.espresso-attestation-service=$ESPRESSO_ATTESTATION_SERVICE_URL" \
         "--espresso.origin-height-espresso=$ESPRESSO_ORIGIN_HEIGHT_ESPRESSO" \
         "--espresso.origin-height-l2=$ESPRESSO_ORIGIN_HEIGHT_L2" \
+        "--espresso.poll-interval=$ESPRESSO_POLL_INTERVAL" \
         "--private-key=$OP_BATCHER_PRIVATE_KEY" \
+        "--poll-interval=$POLL_INTERVAL" \
+        "--num-confirmations=$NUM_CONFIRMATIONS" \
+        "--resubmission-timeout=$RESUBMISSION_TIMEOUT" \
+        "--rpc.enable-admin=$RPC_ENABLE_ADMIN" \
         "--throttle-threshold=$THROTTLE_THRESHOLD" \
         "--max-channel-duration=$MAX_CHANNEL_DURATION" \
         "--target-num-frames=$TARGET_NUM_FRAMES" \
