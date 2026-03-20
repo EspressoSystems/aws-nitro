@@ -1,4 +1,4 @@
-name: Build Enclaver Docker Image
+name: Build EIF Image (Arb)
 
 on:
   workflow_dispatch:
@@ -78,7 +78,7 @@ jobs:
             build.github.actor=${{ github.actor }}
             build.github.ref=${{ github.ref }}
             build.nitro.source_image=${{ env.NITRO_IMAGE_PATH }}
-            build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif.yml
+            build.workflow.page=https://github.com/EspressoSystems/aws-nitro/actions/workflows/build-eif-arb.yml
 
           push: false
           tags: nitro-image:latest
