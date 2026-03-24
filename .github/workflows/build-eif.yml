@@ -7,10 +7,22 @@ on:
         type: string
         description: 'SHA256 hash for the config'
         required: true
+      # config_hash_da:
+      #   type: string
+      #   description: 'SHA256 hash for the config with da (only needed if da enabled)'
+      #   required: true
       nitro_node_image_path:
         type: string
         description: 'Full nitro node image path'
         required: true
+      # aws_region:
+      #   type: string
+      #   description: 'AWS region for Secrets Manager'
+      #   required: true
+      # aws_secret_id:
+      #   type: string
+      #   description: 'AWS Secrets Manager secret ARN'
+      #   required: true
   push:
     branches:
       - main
