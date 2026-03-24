@@ -17,6 +17,7 @@ The Nitro stack enables the creation of an `Enclave Image File (EIF)` from a spe
 - `nitro/docker`: Contains the Dockerfile that pulls the Nitro Node image and configures a Docker image, which is then converted into an Enclave Image File (EIF).
 - `nitro/enclaver`: Configuration for the [Enclaver](https://github.com/enclaver-io/enclaver) tool, generating a Docker image that includes the EIF file.
 - `nitro/scripts`: Includes scripts to install, and run the tools needed on the parent EC2 instance, preparing it to run and communicate with the Batch Poster within the enclave.
+- `nitro/aws-setup`: Ansible playbook for teams managing their own infrastructure. Runs the `base` role which installs all required tooling (Docker, enclaver, nitro-enclaves-cli, socat), configures the socat vsock proxy as a systemd service, sets up NFS, allocates enclave CPU/memory, and drops the config verification file into place. Intended as a starting point — adapt the inventory and role vars to your environment.
 
 ## Workflow Prerequisites
 To run this workflow you need the latest nitro image tag as well as the sha256 hash of the batch poster config and if DA is enabled, you will also need the sha256 hash with DA. To get the hash of the batch poster config run:
