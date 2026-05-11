@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Load build-time parameters baked in by CI (config hashes, AWS config).
+# The file always exists in the package; it's empty for local/dev builds.
+[ -f /etc/build-params.sh ] && source /etc/build-params.sh
+
 set -e
 
 echo "Using config hash: $EXPECTED_CONFIG_SHA256"
