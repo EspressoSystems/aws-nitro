@@ -71,7 +71,7 @@ jobs:
             --image-tag "$IMAGE_TAG" \
             --json > nitro-image.json
 
-          echo "Resolved image config:"
+          echo "nix-prefetch-docker raw output:"
           cat nitro-image.json
 
       - name: Write build params

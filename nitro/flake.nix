@@ -51,7 +51,7 @@
             dockerImage = pkgs.dockerTools.pullImage {
               imageName = imageConfig.imageName;
               imageDigest = imageConfig.imageDigest;
-              sha256 = imageConfig.sha256;
+              sha256 = imageConfig.hash;
               finalImageTag = imageConfig.finalImageTag;
             };
 
