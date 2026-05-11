@@ -43,13 +43,16 @@
           then ./build-params.sh
           else pkgs.writeText "build-params.sh" "";
 
+        # Docker image config — CI overwrites nitro-image.json via nix-prefetch-docker
+        imageConfig = builtins.fromJSON (builtins.readFile ./nitro-image.json);
+
         nitroSealedApp =
           let
             dockerImage = pkgs.dockerTools.pullImage {
-              imageName = "ghcr.io/espressosystems/nitro-espresso-integration/nitro-node";
-              imageDigest = "sha256:db59487bb15a51e8e66f6b725b60863f5c88096ce1e085187ee460c28f9e9c2a";
-              sha256 = "sha256-X9NUKodo+HIZ7Fcc2boTTSp9c+E4fqZZBxmRQv/gPuQ=";
-              finalImageTag = "luke-testing";
+              imageName = imageConfig.imageName;
+              imageDigest = imageConfig.imageDigest;
+              sha256 = imageConfig.sha256;
+              finalImageTag = imageConfig.finalImageTag;
             };
 
             extractedDockerImage = pkgs.runCommand "extracted-docker-rootfs" {
