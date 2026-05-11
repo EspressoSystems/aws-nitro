@@ -82,7 +82,28 @@
 
               installPhase = ''
                 mkdir -p $out
-                cp -r fs/* $out/ || true
+
+                # Copy Docker rootfs but skip standard binary dirs — Debian-linked binaries
+                # in $out/bin would shadow nix tools at build time (makeAppEif adds appPackage
+                # to nativeBuildInputs). Static busybox/bash/jq/socat from makeAppEif covers
+                # all system tools at enclave runtime.
+                for dir in fs/*/; do
+                  name=$(basename "$dir")
+                  case "$name" in
+                    bin|sbin) ;;  # skip — Debian-linked, conflicts with nix build tools
+                    usr)
+                      mkdir -p $out/usr
+                      for subdir in fs/usr/*/; do
+                        subname=$(basename "$subdir")
+                        case "$subname" in
+                          bin|sbin) ;;  # skip
+                          *) cp -r "$subdir" $out/usr/ 2>/dev/null || true ;;
+                        esac
+                      done
+                      ;;
+                    *) cp -r "$dir" $out/ 2>/dev/null || true ;;
+                  esac
+                done
 
                 mkdir -p $out/bin
                 mkdir -p $out/home/user/.arbitrum
